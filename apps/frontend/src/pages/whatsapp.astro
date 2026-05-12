@@ -13,7 +13,7 @@ import Layout from '../layouts/Layout.astro';
 
       <div style="margin-top:1.5rem;display:flex;gap:0.75rem;">
         <button onclick="refreshStatus()" class="btn btn-ghost" style="font-size:0.8rem;">
-          🔄 Actualizar
+          Actualizar
         </button>
         <button
           id="send-btn"
@@ -22,7 +22,7 @@ import Layout from '../layouts/Layout.astro';
           style="font-size:0.8rem;"
           disabled
         >
-          📤 Enviar mensaje
+          Enviar mensaje
         </button>
       </div>
 
@@ -69,7 +69,7 @@ import Layout from '../layouts/Layout.astro';
           <div style="display:flex;align-items:center;gap:0.75rem;background:var(--color-wa-glow);border:1px solid var(--color-wa);border-radius:var(--radius-md);padding:1rem;">
             <div class="wa-dot connected"></div>
             <div>
-              <div style="font-weight:600;color:var(--color-wa);">WhatsApp Conectado ✅</div>
+              <div style="font-weight:600;color:var(--color-wa);">WhatsApp Conectado</div>
               <div class="text-muted text-xs">El bot está activo y recibiendo mensajes</div>
             </div>
           </div>`;
@@ -87,7 +87,7 @@ import Layout from '../layouts/Layout.astro';
       } else {
         panel.innerHTML = `
           <div style="text-align:center;padding:1.5rem;">
-            <div style="font-size:2rem;margin-bottom:0.5rem;">📵</div>
+            <div style="font-size:2rem;margin-bottom:0.5rem;"></div>
             <div style="font-weight:600;color:var(--color-red);">Desconectado</div>
             <div class="text-muted text-xs">Reinicia el backend para reconectar</div>
           </div>`;
@@ -113,7 +113,7 @@ import Layout from '../layouts/Layout.astro';
       if (!recent.length) { el.innerHTML = '<div class="text-muted text-sm">Sin mensajes.</div>'; return; }
       el.innerHTML = recent.map(m => `
         <a href="/contacts/${m.contactId}" style="display:flex;gap:0.75rem;padding:0.6rem 0;border-bottom:1px solid var(--color-border-light);text-decoration:none;color:inherit;">
-          <div style="flex-shrink:0;font-size:0.9rem;">${m.direction === 'INBOUND' ? '📩' : '📤'}</div>
+          <div style="flex-shrink:0;font-size:0.8rem;color:var(--color-text-muted);">${m.direction === 'INBOUND' ? 'In' : 'Out'}</div>
           <div style="flex:1;min-width:0;">
             <div style="display:flex;justify-content:space-between;margin-bottom:0.2rem;">
               <span style="font-weight:600;font-size:0.8rem;">${m.contactName}</span>
@@ -122,7 +122,7 @@ import Layout from '../layouts/Layout.astro';
             <div class="text-muted text-xs" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
               ${m.body?.slice(0,80)}${m.body?.length > 80 ? '...' : ''}
             </div>
-            ${m.agentType ? `<span class="badge" style="font-size:0.6rem;margin-top:0.25rem;background:var(--color-bg-hover);color:var(--color-text-muted);">🤖 ${m.agentType}</span>` : ''}
+            ${m.agentType ? `<span class="badge" style="font-size:0.6rem;margin-top:0.25rem;background:var(--color-bg-hover);color:var(--color-text-muted);">${m.agentType}</span>` : ''}
           </div>
         </a>`).join('');
     } catch {
@@ -148,10 +148,10 @@ import Layout from '../layouts/Layout.astro';
       });
       const data = await res.json();
       if (res.ok) {
-        result.innerHTML = '<span style="color:var(--color-wa);">✅ Mensaje enviado correctamente.</span>';
+        result.innerHTML = '<span style="color:var(--color-wa);">Mensaje enviado correctamente.</span>';
         (document.getElementById('send-msg') as HTMLTextAreaElement).value = '';
       } else {
-        result.innerHTML = `<span style="color:var(--color-red);">❌ ${data.error}</span>`;
+        result.innerHTML = `<span style="color:var(--color-red);">${data.error}</span>`;
       }
     } catch {
       result.innerHTML = '<span style="color:var(--color-red);">Error de conexión.</span>';

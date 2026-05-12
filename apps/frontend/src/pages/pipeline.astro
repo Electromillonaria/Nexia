@@ -17,9 +17,9 @@ import Layout from '../layouts/Layout.astro';
     { key: 'QUALIFIED',   label: 'Calificados',   color: 'var(--stage-qualified)' },
     { key: 'PROPOSAL',    label: 'Propuesta',     color: 'var(--stage-proposal)' },
     { key: 'NEGOTIATION', label: 'Negociación',   color: 'var(--stage-negotiation)' },
-    { key: 'WON',         label: '✅ Ganados',    color: 'var(--stage-won)' },
-    { key: 'LOST',        label: '❌ Perdidos',   color: 'var(--stage-lost)' },
-    { key: 'ON_HOLD',     label: '⏸ En espera',  color: 'var(--stage-on-hold)' },
+    { key: 'WON',         label: 'Ganados',    color: 'var(--stage-won)' },
+    { key: 'LOST',        label: 'Perdidos',   color: 'var(--stage-lost)' },
+    { key: 'ON_HOLD',     label: 'En espera',  color: 'var(--stage-on-hold)' },
   ];
 
   function fmtPhone(p: string) {
@@ -58,7 +58,7 @@ import Layout from '../layouts/Layout.astro';
                       <span class="badge badge-${l.module}" style="font-size:0.65rem;">${l.module?.replace(/_/g,' ')}</span>
                       <span class="text-muted text-xs">${timeAgo(l.updatedAt)}</span>
                     </div>
-                    ${l.notes?.length ? `<div style="margin-top:0.4rem;font-size:0.7rem;color:var(--color-text-muted);">📝 ${l.notes.length} nota${l.notes.length > 1 ? 's' : ''}</div>` : ''}
+                    ${l.notes?.length ? `<div style="margin-top:0.4rem;font-size:0.7rem;color:var(--color-text-muted);">${l.notes.length} nota${l.notes.length > 1 ? 's' : ''}</div>` : ''}
                   </div>
                 </a>`).join('')
               : `<div class="text-muted text-xs" style="padding:0.75rem;text-align:center;">Sin leads</div>`}

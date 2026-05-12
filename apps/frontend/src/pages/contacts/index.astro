@@ -7,7 +7,7 @@ import Layout from '../../layouts/Layout.astro';
       <input
         type="search"
         id="search-input"
-        placeholder="🔍 Buscar por nombre o teléfono..."
+        placeholder="Buscar por nombre o teléfono..."
         style="width:280px;"
       />
     </div>
@@ -49,7 +49,7 @@ import Layout from '../../layouts/Layout.astro';
             return `<tr>
               <td>
                 <div style="display:flex;align-items:center;gap:0.5rem;">
-                  <div style="width:32px;height:32px;border-radius:50%;background:var(--color-wa-glow);display:flex;align-items:center;justify-content:center;flex-shrink:0;">👤</div>
+                  <div style="width:32px;height:32px;border-radius:50%;background:var(--color-wa-glow);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--color-wa);">C</div>
                   <div>
                     <div style="font-weight:600;">${c.name || 'Sin nombre'}</div>
                     ${c.email ? `<div class="text-muted text-xs">${c.email}</div>` : ''}

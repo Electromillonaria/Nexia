@@ -5,22 +5,18 @@ import Layout from '../layouts/Layout.astro';
   <!-- Stats Grid -->
   <div class="stat-grid" id="stats-grid">
     <div class="stat-card" style="--accent: var(--color-wa)">
-      <span class="stat-icon">👥</span>
       <div class="stat-label">Contactos</div>
       <div class="stat-value" id="stat-contacts">—</div>
     </div>
     <div class="stat-card" style="--accent: var(--color-blue)">
-      <span class="stat-icon">🗂️</span>
       <div class="stat-label">Leads activos</div>
       <div class="stat-value" id="stat-leads">—</div>
     </div>
     <div class="stat-card" style="--accent: var(--color-purple)">
-      <span class="stat-icon">💬</span>
       <div class="stat-label">Mensajes hoy</div>
       <div class="stat-value" id="stat-messages">—</div>
     </div>
     <div class="stat-card" style="--accent: var(--color-wa)">
-      <span class="stat-icon">✅</span>
       <div class="stat-label">Ventas cerradas</div>
       <div class="stat-value" id="stat-won">—</div>
     </div>
@@ -100,7 +96,7 @@ import Layout from '../layouts/Layout.astro';
       document.getElementById('recent-contacts')!.innerHTML = recentContacts.length
         ? recentContacts.map((c: any) => `
           <a href="/contacts/${c.id}" style="display:flex;align-items:center;gap:0.75rem;padding:0.5rem 0;border-bottom:1px solid var(--color-border-light);text-decoration:none;color:inherit;">
-            <div style="width:36px;height:36px;border-radius:50%;background:var(--color-wa-glow);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;">👤</div>
+            <div style="width:36px;height:36px;border-radius:50%;background:var(--color-wa-glow);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;color:var(--color-wa);">C</div>
             <div>
               <div style="font-weight:600;font-size:0.85rem;">${c.name || 'Sin nombre'}</div>
               <div class="text-muted font-mono text-xs">${fmtPhone(c.phone)}</div>

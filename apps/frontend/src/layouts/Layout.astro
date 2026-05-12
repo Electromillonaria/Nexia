@@ -11,10 +11,10 @@ const API = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 const currentPath = Astro.url.pathname;
 
 const navItems = [
-  { href: '/dashboard',  icon: '📊', label: 'Dashboard'   },
-  { href: '/pipeline',   icon: '🗂️', label: 'Pipeline'    },
-  { href: '/contacts',   icon: '👥', label: 'Contactos'   },
-  { href: '/whatsapp',   icon: '💬', label: 'WhatsApp'    },
+  { href: '/dashboard',  label: 'Dashboard'   },
+  { href: '/pipeline',   label: 'Pipeline'    },
+  { href: '/contacts',   label: 'Contactos'   },
+  { href: '/whatsapp',   label: 'WhatsApp'    },
 ];
 ---
 <!doctype html>
@@ -24,7 +24,6 @@ const navItems = [
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="CRM Dashboard — Chatbot IA + WhatsApp" />
   <title>{title} · CRM IA</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>" />
 </head>
 <body>
 {showSidebar ? (
@@ -32,7 +31,7 @@ const navItems = [
     <!-- Sidebar -->
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-logo">
-        <div class="logo-icon">🤖</div>
+        <div class="logo-icon">CRM</div>
         <div>
           <div class="logo-text">CRM IA</div>
           <div class="logo-sub">WhatsApp Bot</div>
@@ -47,7 +46,6 @@ const navItems = [
               href={item.href}
               class={`nav-link ${currentPath === item.href ? 'active' : ''}`}
             >
-              <span class="nav-icon">{item.icon}</span>
               {item.label}
             </a>
           ))}
@@ -65,7 +63,7 @@ const navItems = [
             class="btn btn-ghost w-full"
             style="font-size:0.75rem; justify-content:center; padding:0.4rem;"
           >
-            🚪 Cerrar sesión
+            Cerrar sesión
           </button>
         </div>
       </div>
@@ -110,7 +108,7 @@ const navItems = [
       if (!res.ok) return;
       const { status } = await res.json();
       dot.className = `wa-dot ${status}`;
-      const labels = { connected: '✅ Conectado', qr_pending: '🔄 Escaneando QR', disconnected: '❌ Desconectado' };
+      const labels = { connected: 'Conectado', qr_pending: 'Escaneando QR', disconnected: 'Desconectado' };
       txt.textContent = labels[status] || status;
     } catch {}
   }
