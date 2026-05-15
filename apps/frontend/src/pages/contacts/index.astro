@@ -70,7 +70,7 @@ import Layout from '../../layouts/Layout.astro';
 
   async function loadContacts() {
     try {
-      const res = await fetch(`${API}/contacts`, { headers });
+      const res = await fetch(`${API}/contacts?_t=${Date.now()}`, { headers });
       allContacts = await res.json();
       renderTable(allContacts);
     } catch {

@@ -14,6 +14,7 @@ router.get('/' as any, async (_req: Request, res: Response) => {
 			where,
 			include: { contact: true, notes: true },
 		});
+		res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
 		res.json(leads);
 		return;
 	} catch (error) {

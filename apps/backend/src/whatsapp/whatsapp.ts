@@ -21,17 +21,31 @@ export const getCurrentQR = (): string | null => currentQR;
 
 export const initWhatsApp = async (): Promise<Client | null> => {
 	try {
+		const chromePath =
+			process.env.CHROME_PATH ||
+			'C:\\Users\\Niok\\.cache\\puppeteer\\chrome\\win64-146.0.7680.31\\chrome-win64\\chrome.exe';
+
+		logger.info({ chromePath }, 'Initializing WhatsApp with Chrome');
+
 		const client = new Client({
 			authStrategy: new LocalAuth({
 				dataPath: './wa_session',
+				clientId: 'nexia-crm-client',
 			}),
+			webVersionCache: {
+				type: 'remote',
+				remotePath:
+					'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html',
+			},
 			puppeteer: {
 				headless: true,
+				executablePath: chromePath,
 				args: [
-					'--no-sandbox',
-					'--disable-setuid-sandbox',
 					'--disable-dev-shm-usage',
 					'--disable-gpu',
+					'--no-first-run',
+					'--disable-setuid-sandbox',
+					'--no-sandbox',
 				],
 			},
 		});
@@ -76,7 +90,8 @@ export const initWhatsApp = async (): Promise<Client | null> => {
 		whatsappClient = client;
 		return client;
 	} catch (error) {
-		logger.error({ error }, 'Failed to initialize WhatsApp');
+		const msg = error instanceof Error ? error.message : String(error);
+		logger.error({ error: msg }, 'Failed to initialize WhatsApp');
 		return null;
 	}
 };

@@ -9,6 +9,7 @@ router.get('/' as any, async (_req: Request, res: Response) => {
 		const contacts = await prisma.contact.findMany({
 			include: { leads: true, messages: true },
 		});
+		res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
 		res.json(contacts);
 		return;
 	} catch (error) {

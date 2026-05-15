@@ -70,16 +70,16 @@ import Layout from '../layouts/Layout.astro';
   async function loadDashboard() {
     try {
       const [contactsRes, leadsRes] = await Promise.all([
-        fetch(`${API}/contacts`, { headers }),
-        fetch(`${API}/leads`, { headers }),
+        fetch(`${API}/contacts?_t=${Date.now()}`, { headers }),
+        fetch(`${API}/leads?_t=${Date.now()}`, { headers }),
       ]);
       const contacts = await contactsRes.json();
       const leads = await leadsRes.json();
 
       // Stats
-      document.getElementById('stat-contacts')!.textContent = contacts.length;
-      document.getElementById('stat-leads')!.textContent = leads.filter((l: any) => l.stage !== 'WON' && l.stage !== 'LOST').length;
-      document.getElementById('stat-won')!.textContent = leads.filter((l: any) => l.stage === 'WON').length;
+      document.getElementById('stat-contacts')!.textContent = String(contacts.length);
+      document.getElementById('stat-leads')!.textContent = String(leads.filter((l: any) => l.stage !== 'WON' && l.stage !== 'LOST').length);
+      document.getElementById('stat-won')!.textContent = String(leads.filter((l: any) => l.stage === 'WON').length);
 
       // Messages count (via leads messages)
       const today = new Date().toDateString();
@@ -89,7 +89,7 @@ import Layout from '../layouts/Layout.astro';
           if (new Date(m.sentAt).toDateString() === today) msgCount++;
         });
       });
-      document.getElementById('stat-messages')!.textContent = msgCount || '—';
+      document.getElementById('stat-messages')!.textContent = msgCount ? String(msgCount) : '—';
 
       // Recent contacts
       const recentContacts = contacts.slice(-5).reverse();

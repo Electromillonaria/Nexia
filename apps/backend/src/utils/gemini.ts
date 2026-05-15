@@ -4,9 +4,11 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
+const MODEL_NAME = 'gemini-1.5-flash-8k';
+
 export const getGeminiModel = (systemInstruction?: string) => {
 	const model = genAI.getGenerativeModel({
-		model: 'gemini-1.5-flash',
+		model: MODEL_NAME,
 		systemInstruction,
 	});
 	return model;
@@ -17,7 +19,7 @@ export const generateResponse = async (
 	context?: string
 ): Promise<string> => {
 	try {
-		const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+		const model = genAI.getGenerativeModel({ model: MODEL_NAME });
 		const result = await model.generateContent(
 			`${context ? context + '\n\n' : ''}${prompt}`
 		);

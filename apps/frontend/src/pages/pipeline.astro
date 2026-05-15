@@ -36,7 +36,7 @@ import Layout from '../layouts/Layout.astro';
 
   async function loadPipeline() {
     try {
-      const res = await fetch(`${API}/leads`, { headers });
+      const res = await fetch(`${API}/leads?_t=${Date.now()}`, { headers });
       const leads = await res.json();
       const board = document.getElementById('kanban-board')!;
 

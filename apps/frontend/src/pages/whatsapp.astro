@@ -100,7 +100,7 @@ import Layout from '../layouts/Layout.astro';
   async function loadRecentMessages() {
     const el = document.getElementById('recent-msgs')!;
     try {
-      const res = await fetch(`${API}/contacts`, { headers });
+      const res = await fetch(`${API}/contacts?_t=${Date.now()}`, { headers });
       const contacts = await res.json();
       const allMsgs: any[] = [];
       contacts.forEach((c: any) => {
@@ -158,9 +158,9 @@ import Layout from '../layouts/Layout.astro';
     }
   }
 
-  window.refreshStatus = refreshStatus;
-  window.toggleSendForm = toggleSendForm;
-  window.sendMsg = sendMsg;
+  (window as any).refreshStatus = refreshStatus;
+  (window as any).toggleSendForm = toggleSendForm;
+  (window as any).sendMsg = sendMsg;
 
   refreshStatus();
   loadRecentMessages();
