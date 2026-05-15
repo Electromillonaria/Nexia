@@ -35,12 +35,13 @@ const clearSession = async (): Promise<void> => {
 let isReconnecting = false;
 
 export const initWhatsApp = async (forceNewSession = false): Promise<Client | null> => {
-	if (isReconnecting) {
+	if (isReconnecting && !forceNewSession) {
 		logger.info('Reconnection already in progress, skipping...');
 		return null;
 	}
 
 	if (forceNewSession) {
+		isReconnecting = false;
 		await clearSession();
 	}
 	try {
@@ -148,7 +149,7 @@ export const reconnectWhatsApp = async (): Promise<boolean> => {
 		isReconnecting = true;
 
 		await clearSession();
-		await initWhatsApp();
+		await initWhatsApp(true);
 
 		setTimeout(() => {
 			isReconnecting = false;
