@@ -4,11 +4,15 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
-const MODEL_NAME = 'gemma-4-31b-it';
+const MODELS = [
+	'gemma-4-31b-it',
+	'gemma-4-26b-a4b-it',
+	'gemini-2.0-flash'
+];
 
 export const getGeminiModel = (systemInstruction?: string) => {
 	const model = genAI.getGenerativeModel({
-		model: MODEL_NAME,
+		model: MODELS[0],
 		systemInstruction,
 	});
 	return model;
@@ -16,15 +20,23 @@ export const getGeminiModel = (systemInstruction?: string) => {
 
 export const generateResponse = async (
 	prompt: string,
-	context?: string
+	systemInstruction?: string
 ): Promise<string> => {
-	try {
-		const model = genAI.getGenerativeModel({ model: MODEL_NAME });
-		const result = await model.generateContent(
-			`${context ? context + '\n\n' : ''}${prompt}`
-		);
-		return result.response.text();
-	} catch (error) {
-		throw new Error(`Gemini API error: ${error}`);
+	let lastError: any;
+
+	for (const modelName of MODELS) {
+		try {
+			const model = genAI.getGenerativeModel({
+				model: modelName,
+				systemInstruction: systemInstruction,
+			});
+			const result = await model.generateContent(prompt);
+			return result.response.text();
+		} catch (error) {
+			console.warn(`[Gemini API] Model (${modelName}) failed. Trying next model... Error: ${error}`);
+			lastError = error;
+		}
 	}
+
+	throw new Error(`Gemini API error (All models failed). Last error: ${lastError}`);
 };

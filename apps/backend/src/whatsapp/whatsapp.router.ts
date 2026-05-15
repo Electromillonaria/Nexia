@@ -82,6 +82,65 @@ const testMessageSchema = z.object({
 	message: z.string().min(1),
 });
 
+// Endpoint sin auth para el chat flotante
+router.post('/chat', async (req: Request, res: Response) => {
+	const result = testMessageSchema.safeParse(req.body);
+	if (!result.success) {
+		res.status(400).json({ error: 'Datos inválidos', details: result.error.flatten() });
+		return;
+	}
+
+	const { phone, message } = result.data;
+
+	try {
+		const contact = await prisma.contact.upsert({
+			where: { phone },
+			update: {},
+			create: { phone, name: `Chat ${phone.slice(-4)}` },
+		});
+
+		const history = await prisma.message.findMany({
+			where: { contactId: contact.id },
+			orderBy: { sentAt: 'desc' },
+			take: 10,
+		});
+
+		let lead = await prisma.lead.findFirst({
+			where: { contactId: contact.id },
+			orderBy: { createdAt: 'desc' },
+		});
+
+		const context = {
+			contactId: contact.id,
+			phone,
+			leadId: lead?.id,
+			stage: lead?.stage ?? 'INITIAL',
+			module: lead?.module ?? 'VENTAS',
+			history: history.reverse().map((m) => ({
+				direction: m.direction,
+				body: m.body,
+				sentAt: m.sentAt,
+			})),
+		};
+
+		const { agentType, response } = await orchestrator.route(message, context);
+
+		await prisma.message.create({
+			data: {
+				contactId: contact.id,
+				direction: 'OUTBOUND',
+				body: response,
+				agentType,
+			},
+		});
+
+		res.json({ success: true, message: response, agentType });
+	} catch (error) {
+		logger.error({ error, phone, message }, 'Chat error');
+		res.status(500).json({ error: 'Error procesando mensaje', details: String(error) });
+	}
+});
+
 router.post('/test', requireAuth, async (req: Request, res: Response) => {
 	const result = testMessageSchema.safeParse(req.body);
 	if (!result.success) {

@@ -1,5 +1,6 @@
 ---
 import '../styles/global.css';
+import AIChat from '../components/AIChat.astro';
 
 interface Props {
   title?: string;
@@ -122,5 +123,7 @@ const navItems = [
   }
   window.logout = logout;
 </script>
+
+<AIChat />
 </body>
 </html>

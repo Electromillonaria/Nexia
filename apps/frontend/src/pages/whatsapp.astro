@@ -89,7 +89,9 @@ import Layout from '../layouts/Layout.astro';
           <div style="text-align:center;padding:1.5rem;">
             <div style="font-size:2rem;margin-bottom:0.5rem;"></div>
             <div style="font-weight:600;color:var(--color-red);">Desconectado</div>
-            <div class="text-muted text-xs">Reinicia el backend para reconectar</div>
+            <div class="text-muted text-xs" style="margin-bottom:1rem;">El cliente de WhatsApp no está conectado</div>
+            <button onclick="reconnectWA()" class="btn btn-primary" style="font-size:0.85rem;">Reconectar</button>
+            <div id="reconnect-status" style="margin-top:0.75rem;font-size:0.8rem;"></div>
           </div>`;
       }
     } catch {
@@ -158,9 +160,30 @@ import Layout from '../layouts/Layout.astro';
     }
   }
 
+  async function reconnectWA() {
+    const statusEl = document.getElementById('reconnect-status')!;
+    statusEl.innerHTML = '<span style="color:var(--color-wa);">Reconectando...</span>';
+    try {
+      const res = await fetch(`${API}/whatsapp/reconnect`, {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        statusEl.innerHTML = '<span style="color:var(--color-wa);">Reconectando. Espera el QR...</span>';
+        setTimeout(refreshStatus, 3000);
+      } else {
+        statusEl.innerHTML = `<span style="color:var(--color-red);">${data.error || 'Error al reconectar'}</span>`;
+      }
+    } catch {
+      statusEl.innerHTML = '<span style="color:var(--color-red);">Error de conexión.</span>';
+    }
+  }
+
   (window as any).refreshStatus = refreshStatus;
   (window as any).toggleSendForm = toggleSendForm;
   (window as any).sendMsg = sendMsg;
+  (window as any).reconnectWA = reconnectWA;
 
   refreshStatus();
   loadRecentMessages();
