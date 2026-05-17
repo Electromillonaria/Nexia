@@ -119,6 +119,11 @@ const { id } = Astro.params;
                 </div>`).join('')
               : '<div class="text-muted text-sm" style="text-align:center;padding:2rem;">Sin mensajes aún.</div>'}
             </div>
+            <!-- Send Message -->
+            <div style="padding:1rem;border-top:1px solid var(--color-border);display:flex;gap:0.5rem;">
+              <input type="text" id="manual-msg-input" class="form-input" style="flex:1;font-size:0.875rem;" placeholder="Escribe un mensaje..." />
+              <button onclick="sendManualMsg()" class="btn btn-primary" style="padding:0.5rem 1rem;font-size:0.875rem;">Enviar</button>
+            </div>
           </div>
         </div>`;
 
@@ -133,9 +138,38 @@ const { id } = Astro.params;
       const msgList = document.querySelector('.msg-list');
       if (msgList) msgList.scrollTop = msgList.scrollHeight;
 
+      // Manual message handler
+      const msgInput = document.getElementById('manual-msg-input');
+      msgInput?.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendManualMsg();
+      });
+
       window.addNote = addNote;
+      window.sendManualMsg = sendManualMsg;
     } catch (err) {
       container.innerHTML = `<div class="text-muted">Error cargando el contacto.</div>`;
+    }
+  }
+
+  async function sendManualMsg() {
+    const input = document.getElementById('manual-msg-input') as HTMLInputElement;
+    const msg = input?.value?.trim();
+    if (!msg) return;
+
+    try {
+      const res = await fetch(`${API}/whatsapp/send`, {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: c.phone, message: msg }),
+      });
+      if (res.ok) {
+        input.value = '';
+        loadContact();
+      } else {
+        alert('Error al enviar mensaje');
+      }
+    } catch {
+      alert('Error de conexión');
     }
   }
 
