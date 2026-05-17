@@ -28,7 +28,14 @@ export async function handleIncomingMessage(msg: Message): Promise<void> {
 		return;
 	}
 
-	const phone = msg.from.replace('@c.us', '');
+	// Extraer número de teléfono correctamente (manejar formato lid y c.us)
+	let phone = msg.from;
+	if (phone.includes('@lid')) {
+		// Formato legacy: 212519343923373@lid -> extraer solo números
+		phone = phone.replace('@lid', '');
+	} else if (phone.includes('@c.us')) {
+		phone = phone.replace('@c.us', '');
+	}
 	const body = msg.body?.trim();
 
 	if (!body) {
