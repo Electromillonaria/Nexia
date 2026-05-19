@@ -7,7 +7,9 @@ const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 const MODELS = [
 	//'gemma-4-31b-it',
 	//'gemma-4-26b-a4b-it',
-	'gemini-3.0-flash'
+	'gemini-2.5-flash',
+	'gemini-2.5-flash-preview-05-20',
+	'gemini-1.5-flash'
 ];
 
 export const getGeminiModel = (systemInstruction?: string) => {
