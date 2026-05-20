@@ -12,7 +12,6 @@ const API = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api/v1';
   <div id="chat-window" class="chat-window hidden">
     <div class="chat-header">
       <div class="chat-title">
-        <span class="chat-icon">🤖</span>
         <span>Asistente IA</span>
       </div>
       <button id="chat-close" class="chat-close" aria-label="Cerrar chat">×</button>
@@ -103,16 +102,16 @@ const API = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api/v1';
     bottom: 20px;
     right: 20px;
     z-index: 9999;
-    font-family: system-ui, -apple-system, sans-serif;
+    font-family: var(--font, system-ui, -apple-system, sans-serif);
   }
 
   .chat-toggle {
     width: 56px;
     height: 56px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #25D366, #128C7E);
+    background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
     border: none;
-    color: white;
+    color: var(--color-accent-text);
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -132,13 +131,13 @@ const API = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api/v1';
     right: 0;
     width: 360px;
     height: 480px;
-    background: #1a1a1a;
+    background: var(--color-bg-card);
     border-radius: 16px;
     box-shadow: 0 8px 32px rgba(0,0,0,0.5);
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    border: 1px solid #333;
+    border: 1px solid var(--color-border);
   }
 
   .chat-window.hidden {
@@ -146,8 +145,8 @@ const API = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api/v1';
   }
 
   .chat-header {
-    background: linear-gradient(135deg, #25D366, #128C7E);
-    color: white;
+    background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
+    color: var(--color-accent-text);
     padding: 14px 16px;
     display: flex;
     justify-content: space-between;
@@ -162,14 +161,10 @@ const API = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api/v1';
     font-size: 15px;
   }
 
-  .chat-icon {
-    font-size: 20px;
-  }
-
   .chat-close {
     background: none;
     border: none;
-    color: white;
+    color: var(--color-accent-text);
     font-size: 24px;
     cursor: pointer;
     padding: 0;
@@ -183,7 +178,7 @@ const API = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api/v1';
     display: flex;
     flex-direction: column;
     gap: 12px;
-    background: #1a1a1a;
+    background: var(--color-bg-card);
   }
 
   .chat-message {
@@ -196,54 +191,54 @@ const API = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
   .chat-message.user {
     align-self: flex-end;
-    background: #25D366;
-    color: white;
+    background: var(--color-primary);
+    color: var(--color-accent-text);
     border-bottom-right-radius: 4px;
   }
 
   .chat-message.ai {
     align-self: flex-start;
-    background: #2d2d2d;
-    color: #e0e0e0;
+    background: var(--color-bg-hover);
+    color: var(--color-text);
     border-bottom-left-radius: 4px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.3);
   }
 
   .chat-input-area {
     padding: 12px;
-    border-top: 1px solid #333;
+    border-top: 1px solid var(--color-border);
     display: flex;
     gap: 8px;
-    background: #1a1a1a;
+    background: var(--color-bg-card);
   }
 
   .chat-input-area input {
     flex: 1;
     padding: 10px 14px;
-    border: 1px solid #444;
+    border: 1px solid var(--color-border);
     border-radius: 24px;
     font-size: 14px;
     outline: none;
     transition: border-color 0.2s;
-    background: #2d2d2d;
-    color: #e0e0e0;
+    background: var(--color-bg-hover);
+    color: var(--color-text);
   }
 
   .chat-input-area input::placeholder {
-    color: #888;
+    color: var(--color-text-muted);
   }
 
   .chat-input-area input:focus {
-    border-color: #25D366;
+    border-color: var(--color-primary);
   }
 
   .chat-send {
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    background: #25D366;
+    background: var(--color-primary);
     border: none;
-    color: white;
+    color: var(--color-accent-text);
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -252,7 +247,7 @@ const API = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api/v1';
   }
 
   .chat-send:hover {
-    background: #128C7E;
+    background: var(--color-primary-dark);
   }
 
   @media (max-width: 480px) {

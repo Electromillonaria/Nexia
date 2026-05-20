@@ -1,54 +1,54 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    CRM Dashboard — Design System
-   Dark mode · WhatsApp green palette · Glassmorphism
+   Dark mode · Monochromatic blue-grey palette
 ═══════════════════════════════════════════════════════════════════════════ */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 /* ─── CSS Variables ─────────────────────────────────────────────────────── */
 :root {
-  /* Colors */
-  --color-bg:           #0d1117;
-  --color-bg-card:      #161b22;
-  --color-bg-hover:     #1c2330;
-  --color-border:       #30363d;
-  --color-border-light: #21262d;
+  /* Colors - Grayscale scale */
+  --color-bg:           #0a0c10;
+  --color-bg-card:      #13161d;
+  --color-bg-hover:     #1a2029;
+  --color-border:       #252c38;
+  --color-border-light: #1c222c;
 
-  --color-text:         #e6edf3;
-  --color-text-muted:   #8b949e;
-  --color-text-faint:   #484f58;
+  --color-text:         #e2e6ed;
+  --color-text-muted:   #8b93a1;
+  --color-text-faint:   #5a6270;
 
-  /* WhatsApp green */
-  --color-wa:           #25d366;
-  --color-wa-dark:      #128c7e;
-  --color-wa-light:     #dcf8c6;
-  --color-wa-glow:      rgba(37, 211, 102, 0.15);
+  /* Primary grey accent */
+  --color-primary:      #6a7280;
+  --color-primary-dark: #4a5260;
+  --color-primary-light:#8b93a1;
+  --color-primary-glow: rgba(106, 114, 128, 0.15);
 
-  /* Accent colors */
-  --color-blue:         #388bfd;
-  --color-purple:       #a371f7;
-  --color-orange:       #f0883e;
-  --color-red:          #f85149;
-  --color-yellow:       #e3b341;
-  --color-teal:         #39d353;
+  /* Accent colors - grayscale variants */
+  --color-blue:         #6a7280;
+  --color-purple:      #7a7080;
+  --color-orange:      #807060;
+  --color-red:         #806060;
+  --color-yellow:      #807a60;
+  --color-teal:        #607070;
 
   /* Lead stage colors */
-  --stage-initial:      #8b949e;
-  --stage-qualified:    #388bfd;
-  --stage-proposal:     #a371f7;
-  --stage-negotiation:  #f0883e;
-  --stage-won:          #25d366;
-  --stage-lost:         #f85149;
-  --stage-on-hold:      #e3b341;
+  --stage-initial:     #6a7280;
+  --stage-qualified:   #708090;
+  --stage-proposal:    #7a7080;
+  --stage-negotiation: #807060;
+  --stage-won:         #607060;
+  --stage-lost:        #806060;
+  --stage-on-hold:     #807a60;
 
   /* Module colors */
-  --mod-ventas:         #25d366;
-  --mod-cartera:        #f0883e;
-  --mod-tecnico:        #388bfd;
-  --mod-repuestos:      #a371f7;
-  --mod-vacantes:       #e3b341;
-  --mod-distribuidores: #39d353;
-  --mod-pagos:          #58a6ff;
+  --mod-ventas:         #607060;
+  --mod-cartera:        #807060;
+  --mod-tecnico:        #708090;
+  --mod-repuestos:      #7a7080;
+  --mod-vacantes:       #807a60;
+  --mod-distribuidores: #607070;
+  --mod-pagos:          #708090;
 
   /* Spacing */
   --space-1: 0.25rem;
@@ -72,7 +72,7 @@
   --shadow-sm:  0 1px 3px rgba(0,0,0,0.4);
   --shadow-md:  0 4px 12px rgba(0,0,0,0.5);
   --shadow-lg:  0 8px 24px rgba(0,0,0,0.6);
-  --shadow-wa:  0 0 20px rgba(37,211,102,0.2);
+  --shadow-primary:  0 0 20px rgba(90,122,154,0.2);
 
   /* Sidebar */
   --sidebar-width: 240px;
@@ -96,7 +96,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-a { color: var(--color-wa); text-decoration: none; }
+a { color: var(--color-primary); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
 img { max-width: 100%; display: block; }
@@ -120,8 +120,8 @@ input, textarea, select {
 }
 input:focus, textarea:focus, select:focus {
   outline: none;
-  border-color: var(--color-wa);
-  box-shadow: 0 0 0 3px var(--color-wa-glow);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-glow);
 }
 
 /* ─── Layout: Sidebar + Main ─────────────────────────────────────────────── */
@@ -152,13 +152,13 @@ input:focus, textarea:focus, select:focus {
 }
 .sidebar-logo .logo-icon {
   width: 36px; height: 36px;
-  background: var(--color-wa);
+  background: var(--color-primary);
   border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1.2rem;
-  box-shadow: var(--shadow-wa);
+  box-shadow: var(--shadow-primary);
 }
 .sidebar-logo .logo-text {
   font-size: 1rem;
@@ -204,9 +204,9 @@ input:focus, textarea:focus, select:focus {
   text-decoration: none;
 }
 .nav-link.active {
-  color: var(--color-wa);
-  background: var(--color-wa-glow);
-  border-left-color: var(--color-wa);
+  color: var(--color-primary);
+  background: var(--color-primary-glow);
+  border-left-color: var(--color-primary);
 }
 .nav-link .nav-icon { font-size: 1rem; width: 20px; text-align: center; }
 
@@ -226,7 +226,7 @@ input:focus, textarea:focus, select:focus {
   border-radius: var(--radius-full);
   background: var(--stage-lost);
 }
-.wa-dot.connected { background: var(--color-wa); box-shadow: 0 0 8px var(--color-wa); }
+.wa-dot.connected { background: var(--color-primary); box-shadow: 0 0 8px var(--color-primary); }
 .wa-dot.qr_pending { background: var(--color-yellow); }
 
 .main-content {
@@ -305,7 +305,7 @@ input:focus, textarea:focus, select:focus {
   position: absolute;
   top: 0; left: 0; right: 0;
   height: 2px;
-  background: var(--accent, var(--color-wa));
+  background: var(--accent, var(--color-primary));
 }
 .stat-label {
   font-size: 0.75rem;
@@ -341,10 +341,10 @@ input:focus, textarea:focus, select:focus {
   transition: all 0.2s;
 }
 .btn-primary {
-  background: var(--color-wa);
-  color: #000;
+  background: var(--color-primary);
+  color: #fff;
 }
-.btn-primary:hover { background: var(--color-wa-dark); color: #fff; }
+.btn-primary:hover { background: var(--color-primary-dark); color: #fff; }
 .btn-ghost {
   background: transparent;
   color: var(--color-text-muted);
@@ -367,22 +367,22 @@ input:focus, textarea:focus, select:focus {
 }
 
 /* Stage badges */
-.badge-INITIAL    { background: rgba(139,148,158,0.2); color: var(--stage-initial); }
-.badge-QUALIFIED  { background: rgba(56,139,253,0.2);  color: var(--stage-qualified); }
-.badge-PROPOSAL   { background: rgba(163,113,247,0.2); color: var(--stage-proposal); }
-.badge-NEGOTIATION{ background: rgba(240,136,62,0.2);  color: var(--stage-negotiation); }
-.badge-WON        { background: rgba(37,211,102,0.2);  color: var(--stage-won); }
-.badge-LOST       { background: rgba(248,81,73,0.2);   color: var(--stage-lost); }
-.badge-ON_HOLD    { background: rgba(227,179,65,0.2);  color: var(--stage-on-hold); }
+.badge-INITIAL    { background: rgba(106,114,128,0.2); color: var(--stage-initial); }
+.badge-QUALIFIED  { background: rgba(90,122,154,0.2);  color: var(--stage-qualified); }
+.badge-PROPOSAL   { background: rgba(122,106,138,0.2); color: var(--stage-proposal); }
+.badge-NEGOTIATION{ background: rgba(138,112,90,0.2);  color: var(--stage-negotiation); }
+.badge-WON        { background: rgba(90,138,106,0.2);  color: var(--stage-won); }
+.badge-LOST       { background: rgba(138,90,90,0.2);   color: var(--stage-lost); }
+.badge-ON_HOLD    { background: rgba(138,133,112,0.2);  color: var(--stage-on-hold); }
 
 /* Module badges */
-.badge-VENTAS           { background: rgba(37,211,102,0.15);  color: var(--mod-ventas); }
-.badge-CARTERA          { background: rgba(240,136,62,0.15);  color: var(--mod-cartera); }
-.badge-SERVICIO_TECNICO { background: rgba(56,139,253,0.15);  color: var(--mod-tecnico); }
-.badge-REPUESTOS        { background: rgba(163,113,247,0.15); color: var(--mod-repuestos); }
-.badge-VACANTES         { background: rgba(227,179,65,0.15);  color: var(--mod-vacantes); }
-.badge-DISTRIBUIDORES   { background: rgba(57,211,83,0.15);   color: var(--mod-distribuidores); }
-.badge-MEDIOS_DE_PAGO   { background: rgba(88,166,255,0.15);  color: var(--mod-pagos); }
+.badge-VENTAS           { background: rgba(90,138,106,0.15);  color: var(--mod-ventas); }
+.badge-CARTERA          { background: rgba(138,112,90,0.15);  color: var(--mod-cartera); }
+.badge-SERVICIO_TECNICO { background: rgba(90,122,154,0.15);  color: var(--mod-tecnico); }
+.badge-REPUESTOS        { background: rgba(122,106,138,0.15); color: var(--mod-repuestos); }
+.badge-VACANTES         { background: rgba(138,133,112,0.15);  color: var(--mod-vacantes); }
+.badge-DISTRIBUIDORES   { background: rgba(90,122,122,0.15);   color: var(--mod-distribuidores); }
+.badge-MEDIOS_DE_PAGO   { background: rgba(90,122,154,0.15);  color: var(--mod-pagos); }
 
 /* ─── Tables ─────────────────────────────────────────────────────────────── */
 .table-wrap {
@@ -447,7 +447,7 @@ tbody tr:hover { background: var(--color-bg-hover); }
 }
 .msg-bubble.outbound {
   align-self: flex-end;
-  background: var(--color-wa-dark);
+  background: var(--color-primary-dark);
   color: #fff;
   border-bottom-right-radius: var(--radius-sm);
 }
@@ -511,8 +511,8 @@ tbody tr:hover { background: var(--color-bg-hover); }
   transition: all 0.2s;
 }
 .kanban-card:hover {
-  border-color: var(--color-wa);
-  box-shadow: 0 0 0 1px var(--color-wa-glow);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primary-glow);
   transform: translateY(-1px);
 }
 .kanban-card-name {
@@ -538,7 +538,7 @@ tbody tr:hover { background: var(--color-bg-hover); }
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(ellipse at 50% 0%, rgba(37,211,102,0.08) 0%, transparent 60%),
+  background: radial-gradient(ellipse at 50% 0%, rgba(90,122,154,0.08) 0%, transparent 60%),
               var(--color-bg);
 }
 .login-card {
@@ -556,14 +556,14 @@ tbody tr:hover { background: var(--color-bg-hover); }
 }
 .login-logo .icon {
   width: 56px; height: 56px;
-  background: linear-gradient(135deg, var(--color-wa), var(--color-wa-dark));
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
   border-radius: var(--radius-lg);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   font-size: 1.8rem;
   margin-bottom: var(--space-4);
-  box-shadow: var(--shadow-wa);
+  box-shadow: var(--shadow-primary);
 }
 .login-logo h1 {
   font-size: 1.3rem;
@@ -606,9 +606,9 @@ tbody tr:hover { background: var(--color-bg-hover); }
   padding: var(--space-8);
 }
 .qr-img {
-  border: 4px solid var(--color-wa);
+  border: 4px solid var(--color-primary);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-wa);
+  box-shadow: var(--shadow-primary);
   max-width: 250px;
 }
 

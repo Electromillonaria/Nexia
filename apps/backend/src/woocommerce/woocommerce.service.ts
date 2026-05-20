@@ -112,18 +112,21 @@ export const wooCommerceService = {
 			return MOCK_CATALOG.slice(0, limit);
 		}
 		try {
-			const { data } = await wcApi.get('/wp-json/wc/v3/products', {
+			logger.info('Fetching products from WooCommerce...');
+			const { data } = await wcApi.get('wp-json/wc/v3/products', {
 				params: { per_page: limit, status: 'publish' },
 			});
+			logger.info({ count: data.length }, 'WooCommerce products fetched successfully');
 			return data as WCProduct[];
-		} catch (error) {
-			logger.error({ error }, 'WooCommerce API error, falling back to mock');
+		} catch (error: any) {
+			logger.error({ error: error.message, status: error.response?.status, data: error.response?.data }, 'WooCommerce API error, falling back to mock');
 			return MOCK_CATALOG.slice(0, limit);
 		}
 	},
 
 	async searchProducts(query: string, limit = 5): Promise<WCProduct[]> {
 		if (!wcApi) {
+			logger.warn({ query }, 'WooCommerce not configured, searching mock catalog');
 			const q = query.toLowerCase();
 			return MOCK_CATALOG.filter(
 				(p) =>
@@ -133,12 +136,14 @@ export const wooCommerceService = {
 			).slice(0, limit);
 		}
 		try {
-			const { data } = await wcApi.get('/wp-json/wc/v3/products', {
+			logger.info({ query }, 'Searching products in WooCommerce...');
+			const { data } = await wcApi.get('wp-json/wc/v3/products', {
 				params: { search: query, per_page: limit },
 			});
+			logger.info({ query, count: data.length }, 'WooCommerce search results');
 			return data as WCProduct[];
-		} catch (error) {
-			logger.error({ error }, 'WooCommerce search error, falling back to mock');
+		} catch (error: any) {
+			logger.error({ error: error.message, query, status: error.response?.status, data: error.response?.data }, 'WooCommerce search error, falling back to mock');
 			const q = query.toLowerCase();
 			return MOCK_CATALOG.filter(
 				(p) =>
