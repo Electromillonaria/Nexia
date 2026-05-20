@@ -2,6 +2,9 @@ import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const { Client: WAClient, LocalAuth } = require('whatsapp-web.js');
 import type { Client } from 'whatsapp-web.js';
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+declare const window: any;
 import qrcode from 'qrcode';
 import fs from 'fs/promises';
 import path from 'path';
@@ -126,7 +129,8 @@ export const initWhatsApp = async (forceNewSession = false): Promise<Client | nu
 			if (client.info?.wid) {
 				try {
 					await client.pupPage.evaluate(() => {
-						return window.Store?.Msg?.collection?.length;
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
+						return (window as any).Store?.Msg?.collection?.length;
 					});
 					logger.debug('Keep-alive ping sent');
 				} catch {}
@@ -134,12 +138,12 @@ export const initWhatsApp = async (forceNewSession = false): Promise<Client | nu
 		}, 30000);
 
 		// Conectar mensajes entrantes al handler
-		client.on('message', async (msg) => {
+		client.on('message', async (msg: any) => {
 			logger.info({ msgId: msg.id._serialized, from: msg.from }, 'Message event caught');
 			await handleIncomingMessage(msg);
 		});
 
-		client.on('message_create', (msg) => {
+		client.on('message_create', (msg: any) => {
 			logger.info({ msgId: msg.id._serialized, fromMe: msg.fromMe }, 'Message created event');
 		});
 
@@ -173,8 +177,8 @@ export const sendMessage = async (to: string, message: string): Promise<void> =>
 		phone = '57' + phone;
 	}
 
-	logger.info({ originalTo: to, normalizedPhone: phone, chatId }, 'Sending WhatsApp message');
 	const chatId = `${phone}@c.us`;
+	logger.info({ originalTo: to, normalizedPhone: phone, chatId }, 'Sending WhatsApp message');
 	await whatsappClient.sendMessage(chatId, message);
 };
 
