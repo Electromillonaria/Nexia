@@ -50,57 +50,37 @@ export class Orchestrator {
 
 		// Lista de saludos / aperturas comunes (sin intención específica)
 		const greetings = [
-			'hola',
-			'holaa',
-			'holaaa',
-			'holi',
-			'ola',
-			'hello',
-			'hi',
-			'buenas',
-			'buenos dias',
-			'buenos días',
-			'buen dia',
-			'buen día',
-			'buenas tardes',
-			'buenas noches',
-			'que tal',
-			'qué tal',
-			'saludos',
-			'hey',
-			'oye',
-			'jlc',
-			'info',
-			'informacion',
-			'información',
-			'ayuda',
-			'help',
-			'menu',
-			'menú',
-			'opciones',
-			'inicio',
-			'empezar',
-			'comenzar',
-			'start',
-			'pregunta',
-			'consulta',
-			'quiero informacion',
-			'quiero información',
-			'necesito ayuda',
-			'?',
-			'??',
+			'hola', 'holaa', 'holaaa', 'holi', 'oli', 'ola', 'hello', 'hi', 'hey',
+			'buenas', 'buenos dias', 'buenos días', 'buen dia', 'buen día',
+			'buenas tardes', 'buenas noches', 'que tal', 'qué tal', 'como estas',
+			'cómo estás', 'como estas?', 'cómo estás?', 'que hubo', 'qué hubo',
+			'saludos', 'oye', 'jlc', 'buenvenido', 'bienvenido', 'bienvenida',
+			'info', 'informacion', 'información', 'ayuda', 'help',
+			'menu', 'menú', 'opciones', 'inicio', 'empezar', 'comenzar', 'start',
+			'pregunta', 'consulta', 'quisiera saber', 'me gustaría saber',
+			'soy nuevo', 'soy nueva', 'primera vez', 'vengo de',
+			'?', '??', '...',
 		];
 
 		// Limpiar puntuación final para comparar
-		const cleaned = m.replace(/[.,!?¡¿]+$/g, '').trim();
+		const cleaned = m.replace(/[.,!?¡¿…]+$/g, '').trim();
 		if (greetings.includes(cleaned)) return true;
 
-		// Saludos con coma: "hola, ¿como estan?"
-		const firstWord = cleaned.split(/[\s,.]/)[0];
-		if (greetings.includes(firstWord) && cleaned.length < 25) return true;
+		// Saludos con coma: "hola, ¿como estan?" o con algo después
+		const firstWord = cleaned.split(/[\s,]+/)[0];
+		if (greetings.includes(firstWord) && cleaned.length < 30) return true;
 
-		// Muy corto y sin palabras clave de intención
-		if (cleaned.length < 4) return true;
+		// Patrones de presentación: "me llamo...", "soy...", "me llamo"
+		const presentationPatterns = [
+			/^me\s+llamo/i, /^soy\s+[a-z]/i, /^mi\s+nombre/i,
+			/^vengo\s+por/i, /^quisiera\s+info/i, /^busco\s+info/i,
+		];
+		for (const pattern of presentationPatterns) {
+			if (pattern.test(cleaned) && cleaned.length < 40) return true;
+		}
+
+		// Muy corto y sin palabras clave de intención (menos de 5 caracteres)
+		if (cleaned.length < 5) return true;
 
 		return false;
 	}

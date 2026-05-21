@@ -1,5 +1,6 @@
 import { generateResponse } from '../utils/gemini.js';
 import { wooCommerceService } from '../woocommerce/woocommerce.service.js';
+import { sendMessage as sendWA } from '../whatsapp/whatsapp.js';
 
 export interface AgentResponse {
 	response: string;
@@ -285,7 +286,7 @@ function buildGemmaPrompt(opts: {
 	mensajeCliente: string;
 }): { system: string; user: string } {
 	// system: rol mínimo + nota de formato
-	const system = `${opts.instruccion} Responde en español natural, en una o dos frases breves, sin asteriscos, sin encabezados, sin etiquetas, sin explicar tu razonamiento. IMPORTANTE: Responde SOLO el mensaje al cliente.`;
+	const system = `${opts.instruccion} Responde en español natural, en una o dos frases breves, sin asteriscos, sin encabezados, sin etiquetas, sin explicar tu razonamiento. IMPORTANTE: Responde SOLO el mensaje al cliente leyendo su contexto.`;
 
 	// user: conversación continua con ejemplos + historial + mensaje actual
 	const ejemplosTexto = opts.ejemplos
@@ -299,99 +300,361 @@ function buildGemmaPrompt(opts: {
 	return { system, user };
 }
 
-// ─── AGENTE BIENVENIDA (sin LLM) ─────────────────────────────────────────────
+// ─── AGENTE BIENVENIDA ────────────────────────────────────────────────────────
+
+const AGENT_NAME = 'Sara'; // Nombre de la asistente virtual
 
 export class BienvenidaAgent implements IAgent {
-	name = 'Bienvenida';
+  name = 'Bienvenida';
 
-	async handle(_message: string, _context: any): Promise<AgentResponse> {
-		const hora = new Date().getHours();
-		let saludo = 'Hola';
-		if (hora >= 5 && hora < 12) saludo = 'Buenos días';
-		else if (hora >= 12 && hora < 19) saludo = 'Buenas tardes';
-		else saludo = 'Buenas noches';
+  private getSaludo(): string {
+    const hora = new Date().getHours();
+    if (hora >= 5 && hora < 12) return 'Buenos días';
+    if (hora >= 12 && hora < 19) return 'Buenas tardes';
+    return 'Buenas noches';
+  }
 
-		const response = `${saludo}, bienvenido(a) a Electrodomésticos JLC. 😊 ¿En qué puedo ayudarte hoy? Puedes preguntarme por:
+  private tieneIntencionClara(mensaje: string): boolean {
+    const keywords = [
+      'nevera', 'televisor', 'tv', 'lavadora', 'congelador', 'parlante',
+      'precio', 'cotizar', 'cuánto', 'cuanto', 'comprar', 'garantía',
+      'garantia', 'técnico', 'tecnico', 'distribuidor', 'trabajo', 'vacante',
+      'pago', 'crédito', 'credito', 'envío', 'envio',
+    ];
+    const lower = mensaje.toLowerCase();
+    return keywords.some((kw) => lower.includes(kw));
+  }
 
-• Compra o cotización de electrodomésticos
-• Repuestos
-• Servicio técnico
-• Medios de pago
-• Distribuidores
-• Vacantes`;
+  async handle(message: string, _context: any): Promise<AgentResponse> {
+    const saludo = this.getSaludo();
+    const tieneIntencion = this.tieneIntencionClara(message);
 
-		return {
-			response,
-			metadata: { agentType: 'bienvenida' },
-		};
-	}
+    // Si el usuario ya llegó con una intención clara, la bienvenida es breve
+    // y el router tomará el relevo con el mismo mensaje.
+    if (tieneIntencion) {
+      return {
+        response: `${saludo} 👋 Soy ${AGENT_NAME}, asistente virtual de *JLC Electronics*. Con gusto te ayudo con eso.`,
+        metadata: {
+          agentType: 'bienvenida',
+          passthrough: true, // señal para que el router procese el mensaje original
+        },
+      };
+    }
+
+    // Bienvenida completa con menú cuando no hay intención detectada
+    const menu = `${saludo} 👋 Soy ${AGENT_NAME}, la asistente virtual de *JLC Electronics*.
+
+¿En qué puedo ayudarte hoy?
+
+1️⃣ Productos y cotizaciones
+2️⃣ Garantías y servicio técnico
+3️⃣ Medios de pago y financiación
+4️⃣ Distribuidores y puntos de venta
+5️⃣ Trabaja con nosotros
+
+Escríbeme el número de tu opción o cuéntame directamente lo que necesitas. 😊`;
+
+    return {
+      response: menu,
+      metadata: { agentType: 'bienvenida', passthrough: false },
+    };
+  }
+}
+// ─── TIPOS ───────────────────────────────────────────────────────────────────
+
+interface CreditoData {
+  nombres?: string;
+  apellidos?: string;
+  cedula?: string;
+  celular?: string;
+  direccion?: string;
+  tipoVivienda?: string;
+  departamento?: string;
+  ciudad?: string;
+  personasACargo?: string;
+  empresa?: string;
+  cargo?: string;
+  experienciaLaboral?: string;
+  estadoCivil?: string;
+  ingresosMensuales?: string;
+  gastosMensuales?: string;
+  otrosIngresos?: string;
+  reportadoDataCredito?: string;
+  dispuestoSaldarDeuda?: string;
+  producto?: string;
+  skuProducto?: string;
+}
+
+interface CreditoStep {
+  field: keyof CreditoData;
+  pregunta: string;
+  opciones?: string[]; // para campos de selección
+}
+
+// ─── PASOS DEL FORMULARIO DE CRÉDITO ─────────────────────────────────────────
+
+const CREDITO_STEPS: CreditoStep[] = [
+  { field: 'nombres',             pregunta: '¿Cuál es tu nombre?' },
+  { field: 'apellidos',           pregunta: '¿Y tus apellidos?' },
+  { field: 'cedula',              pregunta: '¿Cuál es tu número de cédula de ciudadanía?' },
+  { field: 'celular',             pregunta: '¿Cuál es tu número de celular?' },
+  { field: 'direccion',           pregunta: '¿Cuál es tu dirección de residencia y barrio?' },
+  {
+    field: 'tipoVivienda',
+    pregunta: '¿Qué tipo de vivienda tienes?\n1. Propia\n2. Arriendo\n3. Anticrés\n4. Familiar',
+    opciones: ['Propia', 'Arriendo', 'Anticrés', 'Familiar'],
+  },
+  { field: 'departamento',        pregunta: '¿En qué departamento vives?' },
+  { field: 'ciudad',              pregunta: '¿En qué ciudad? Si aplica, escribe también la vereda.' },
+  {
+    field: 'personasACargo',
+    pregunta: '¿Cuántas personas tienes a cargo?\n1. 1\n2. 2\n3. 3\n4. 4\n5. 5 o más',
+    opciones: ['1', '2', '3', '4', '5 o más'],
+  },
+  { field: 'empresa',             pregunta: '¿En qué empresa trabajas?' },
+  { field: 'cargo',               pregunta: '¿Qué cargo desempeñas? Si eres independiente, describe tu actividad comercial.' },
+  { field: 'experienciaLaboral',  pregunta: '¿Cuánto tiempo llevas en esa empresa o actividad?' },
+  {
+    field: 'estadoCivil',
+    pregunta: '¿Cuál es tu estado civil?\n1. Soltero/a\n2. Casado/a\n3. Unión libre\n4. Viudo/a',
+    opciones: ['Soltero/a', 'Casado/a', 'Unión libre', 'Viudo/a'],
+  },
+  { field: 'ingresosMensuales',   pregunta: '¿Cuáles son tus ingresos mensuales? (valor aproximado en pesos)' },
+  { field: 'gastosMensuales',     pregunta: '¿Cuáles son tus gastos mensuales? (valor aproximado en pesos)' },
+  { field: 'otrosIngresos',       pregunta: '¿Tienes otros ingresos? Si es así, especifica la fuente. Si no, escribe "No".' },
+  {
+    field: 'reportadoDataCredito',
+    pregunta: '¿Te encuentras reportado en DataCrédito?\n1. Sí\n2. No\n3. No sé',
+    opciones: ['Sí', 'No', 'No sé'],
+  },
+  {
+    field: 'dispuestoSaldarDeuda',
+    pregunta: '¿Estarías dispuesto/a a saldar tu deuda con la empresa que te reportó para aspirar a un nuevo crédito?\n1. Sí\n2. No',
+    opciones: ['Sí', 'No'],
+  },
+  { field: 'producto',            pregunta: '¿Qué producto te interesa financiar?' },
+  { field: 'skuProducto',         pregunta: 'Por último, ¿cuál es el código SKU o referencia del producto? Lo encuentras debajo del título en la página. Si no lo tienes, escribe "No sé".' },
+];
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+
+function resolverOpcion(respuesta: string, opciones: string[]): string {
+  const r = respuesta.trim();
+  // Acepta número (ej: "1") o texto (ej: "Propia")
+  const porNumero = parseInt(r, 10);
+  if (!isNaN(porNumero) && porNumero >= 1 && porNumero <= opciones.length) {
+    return opciones[porNumero - 1];
+  }
+  // Acepta coincidencia parcial de texto
+  const porTexto = opciones.find((o) =>
+    o.toLowerCase().includes(r.toLowerCase())
+  );
+  return porTexto ?? r; // si no coincide nada, guarda lo que escribió
+}
+
+function formatearResumenCredito(data: CreditoData): string {
+  return `
+🟦 *SOLICITUD DE CRÉDITO - JLC Electronics*
+
+👤 *Datos personales*
+- Nombre: ${data.nombres} ${data.apellidos}
+- Cédula: ${data.cedula}
+- Celular: ${data.celular}
+- Dirección: ${data.direccion}
+- Tipo de vivienda: ${data.tipoVivienda}
+- Departamento: ${data.departamento}
+- Ciudad: ${data.ciudad}
+- Personas a cargo: ${data.personasACargo}
+- Estado civil: ${data.estadoCivil}
+
+💼 *Información laboral*
+- Empresa: ${data.empresa}
+- Cargo: ${data.cargo}
+- Experiencia: ${data.experienciaLaboral}
+
+💰 *Información financiera*
+- Ingresos mensuales: ${data.ingresosMensuales}
+- Gastos mensuales: ${data.gastosMensuales}
+- Otros ingresos: ${data.otrosIngresos}
+- Reportado en DataCrédito: ${data.reportadoDataCredito}
+- Dispuesto a saldar deuda: ${data.dispuestoSaldarDeuda}
+
+🛒 *Producto de interés*
+- Producto: ${data.producto}
+- SKU / Referencia: ${data.skuProducto}
+`.trim();
+}
+
+async function enviarResumenWhatsApp(resumen: string): Promise<void> {
+  // Número de WhatsApp para cartera (ajusta según corresponda)
+  const WHATSAPP_CARTERA = process.env.WA_CARTERA || '573007215438';
+  const texto = encodeURIComponent(resumen);
+  await sendWA(WHATSAPP_CARTERA, texto);
 }
 
 // ─── AGENTE VENTAS ───────────────────────────────────────────────────────────
 
 export class VentasAgent implements IAgent {
-	name = 'Ventas';
+  name = 'Ventas';
 
-	async handle(message: string, context: any): Promise<AgentResponse> {
-		let productList = '';
-		try {
-			const products = await wooCommerceService.searchProducts(message, 4);
-			productList = wooCommerceService.formatProductList(products);
-		} catch {
-			productList = '';
-		}
+  // ── Formato de productos para el LLM ──────────────────────────────────────
+  private formatProductosParaPrompt(products: any[]): string {
+    if (!products?.length) return 'No se encontraron productos relacionados.';
+    return products
+      .map((p, i) => {
+        const precio = p.sale_price
+          ? `~~$${Number(p.regular_price).toLocaleString('es-CO')}~~ → *$${Number(p.sale_price).toLocaleString('es-CO')}* (en oferta)`
+          : `$${Number(p.price).toLocaleString('es-CO')}`;
+        return `${i + 1}. *${p.name}*\n   Precio: ${precio}\n   Ver producto: ${p.permalink}`;
+      })
+      .join('\n\n');
+  }
 
-		const datos = `Cierre de ventas: Cristina, WhatsApp +57 318 740 8190. Compra al detal: contado o crédito. Compra al por mayor: área de distribuidores. Zona Putumayo tiene asesor dedicado. Sitio web: https://jlc-electronics.com/.${productList ? ` Productos relacionados: ${productList}` : ''}`;
+  // ── Flujo de crédito paso a paso ──────────────────────────────────────────
+  private async manejarFlujoCredito(
+    message: string,
+    context: any
+  ): Promise<AgentResponse> {
+    const creditoData: CreditoData = context?.creditoData ?? {};
+    const stepIndex: number = context?.creditoStep ?? 0;
 
-		const { system, user } = buildGemmaPrompt({
-			instruccion: `Eres asesor comercial de Electrodomésticos JLC, cordial y breve, hablas español de Colombia. Datos que puedes usar: ${datos}`,
-			ejemplos: [
-				{
-					cliente: 'Quiero saber el precio de una nevera',
-					asistente:
-						'¡Con gusto! Para darte el precio exacto, ¿desde qué ciudad escribes y qué tipo de nevera buscas (capacidad o marca)? ¿La compra sería al contado o a crédito?',
-				},
-				{
-					cliente: 'que productos tienen disponibles',
-					asistente:
-						'Manejamos neveras, congeladores, lavadoras, televisores, y más. Puedes ver el catálogo en https://jlc-electronics.com/. ¿Buscas algo en particular para confirmarte disponibilidad?',
-				},
-				{
-					cliente: 'congeladores',
-					asistente:
-						'¡Sí, tenemos congeladores! ¿Desde qué ciudad escribes y qué capacidad necesitas (en litros)? ¿Lo pagarías de contado o a crédito?',
-				},
-				{
-					cliente: 'A crédito por favor',
-					asistente:
-						'Perfecto. Para iniciar el estudio de crédito necesito tres datos: tu nombre completo, número de cédula e ingresos mensuales. Luego Cristina (+57 318 740 8190) continúa la gestión.',
-				},
-				{
-					cliente: 'Al contado',
-					asistente:
-						'¡Genial! Confírmame el modelo exacto y tu ciudad, y te paso precio y disponibilidad. Después te conecto con Cristina (+57 318 740 8190) para finalizar la compra.',
-				},
-				{
-					cliente: 'Soy de Mocoa, Putumayo',
-					asistente:
-						'¡Bienvenido! Para Putumayo tenemos asesor dedicado. Cuéntame qué producto buscas y te paso el contacto directo del asesor de tu zona.',
-				},
-			],
-			historial: formatHistory(context?.history),
-			mensajeCliente: message,
-		});
+    // Guardar la respuesta del paso anterior (si ya hay pasos iniciados)
+    if (stepIndex > 0) {
+      const stepAnterior = CREDITO_STEPS[stepIndex - 1];
+      const valor = stepAnterior.opciones
+        ? resolverOpcion(message, stepAnterior.opciones)
+        : message.trim();
+      creditoData[stepAnterior.field] = valor;
+    }
 
-		const raw = await generateResponse(user, system);
-		const response = cleanResponse(raw);
+    // Verificar si hay campos obligatorios sin responder (por si el cliente
+    // envió algo vacío o inválido)
+    const camposFaltantes = CREDITO_STEPS.filter(
+      (s) => !creditoData[s.field]
+    );
 
-		return {
-			response,
-			nextStage: 'PROPOSAL',
-			metadata: { agentType: 'ventas' },
-		};
-	}
+    // ¿Quedan pasos por completar?
+    if (camposFaltantes.length > 0) {
+      const siguientePaso = camposFaltantes[0];
+      const indexReal = CREDITO_STEPS.findIndex(
+        (s) => s.field === siguientePaso.field
+      );
+
+      return {
+        response: siguientePaso.pregunta,
+        metadata: {
+          agentType: 'ventas',
+          flujo: 'credito',
+          creditoData,
+          creditoStep: indexReal + 1, // avanza al siguiente
+        },
+      };
+    }
+
+    // ── Todos los campos completos: enviar resumen ─────────────────────────
+    const resumen = formatearResumenCredito(creditoData);
+
+    try {
+      await enviarResumenWhatsApp(resumen);
+    } catch {
+      // Si falla el envío, igual confirma al cliente y notifica
+      console.error('Error enviando resumen de crédito por WhatsApp');
+    }
+
+    return {
+      response: `¡Listo! 🎉 Tu solicitud de crédito fue enviada a nuestro equipo comercial. Cristina (+57 318 740 8190) se comunicará contigo pronto para continuar el proceso.\n\nSi tienes alguna duda adicional, con gusto te ayudo.`,
+      nextStage: 'DONE',
+      metadata: {
+        agentType: 'ventas',
+        flujo: 'credito_completado',
+        creditoData, // queda en contexto por si se necesita
+      },
+    };
+  }
+
+  // ── Handle principal ──────────────────────────────────────────────────────
+  async handle(message: string, context: any): Promise<AgentResponse> {
+
+    // Si ya está en flujo de crédito, continuar ese flujo
+    if (context?.flujo === 'credito') {
+      return this.manejarFlujoCredito(message, context);
+    }
+
+    // Detectar si el cliente pide crédito en este mensaje
+    const quiereCredito = /cr[eé]dito|a cr[eé]dito|financiar|financiaci[oó]n|cuotas|pagar a cuotas/i.test(message);
+    if (quiereCredito) {
+      return {
+        response: `Perfecto, te ayudo con el proceso de crédito 📋\n\nVoy a hacerte unas preguntas para diligenciar tu solicitud. Son ${CREDITO_STEPS.length} campos en total, uno por uno.\n\n${CREDITO_STEPS[0].pregunta}`,
+        metadata: {
+          agentType: 'ventas',
+          flujo: 'credito',
+          creditoData: {},
+          creditoStep: 1,
+        },
+      };
+    }
+
+    // ── Flujo normal de ventas ────────────────────────────────────────────
+    let productosFormateados = '';
+    let hayProductos = false;
+
+    try {
+      const products = await wooCommerceService.searchProducts(message, 4);
+      hayProductos = products?.length > 0;
+      productosFormateados = hayProductos
+        ? this.formatProductosParaPrompt(products)
+        : 'No se encontraron productos que coincidan con la búsqueda.';
+    } catch {
+      productosFormateados = 'No fue posible consultar el catálogo en este momento.';
+    }
+
+    const instruccion = `Eres ${AGENT_NAME}, asesora comercial de JLC Electronics Colombia.
+Tu tono es neutro, cálido y directo. Hablas en español colombiano. Tus respuestas son cortas (máximo 5 líneas).
+
+REGLAS:
+- Si hay productos en el CATÁLOGO, SIEMPRE mencioná al menos uno con su nombre, precio y enlace.
+- No inventes productos ni precios. Solo usá los del CATÁLOGO.
+- Si no hay productos coincidentes, dirigí al cliente al sitio web o a Cristina .
+- Si el cliente menciona crédito o cuotas, responde que iniciarás el proceso de solicitud.
+
+MEDIOS DE COMPRA:
+- Detal: contado o crédito.
+- Por mayor: área de distribuidores.
+- Sitio web: https://jlc-electronics.com/
+
+CATÁLOGO CONSULTADO PARA ESTE MENSAJE:
+${productosFormateados}`;
+
+    const { system, user } = buildGemmaPrompt({
+      instruccion,
+      ejemplos: [
+        {
+          cliente: 'Quiero una nevera',
+          asistente: '¡Claro! Tenemos estas opciones disponibles 👇 ¿La compra sería al contado o a crédito? ¿Desde qué ciudad escribes?',
+        },
+        {
+          cliente: 'Quiero pagar a crédito',
+          asistente: 'Con gusto te ayudo con el proceso de crédito. Voy a hacerte unas preguntas para diligenciar tu solicitud.',
+        },
+        {
+          cliente: 'Soy de Mocoa',
+          asistente: 'Para la zona de Putumayo tenemos un asesor dedicado. Cuéntame qué producto buscas y te paso el contacto directo.',
+        },
+      ],
+      historial: formatHistory(context?.history),
+      mensajeCliente: message,
+    });
+
+    const raw = await generateResponse(user, system);
+    const response = cleanResponse(raw);
+
+    return {
+      response,
+      nextStage: 'PROPOSAL',
+      metadata: { agentType: 'ventas', productosEncontrados: hayProductos },
+    };
+  }
 }
-
 // ─── AGENTE CARTERA ──────────────────────────────────────────────────────────
 
 export class CarteraAgent implements IAgent {
