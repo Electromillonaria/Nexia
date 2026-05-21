@@ -70,6 +70,33 @@ router.post('/send', requireAuth, async (req: Request, res: Response) => {
 	try {
 		const { to, message } = result.data;
 		await sendMessage(to, message);
+
+		// Registrar de inmediato en la base de datos para actualizar la UI en tiempo real
+		let phone = to;
+		if (phone.includes('@s.whatsapp.net')) {
+			phone = phone.replace('@s.whatsapp.net', '');
+		} else if (phone.includes('@lid')) {
+			phone = phone.replace('@lid', '');
+		} else if (phone.includes('@c.us')) {
+			phone = phone.replace('@c.us', '');
+		}
+
+		const contact = await prisma.contact.findUnique({
+			where: { phone },
+		});
+
+		if (contact) {
+			await prisma.message.create({
+				data: {
+					contactId: contact.id,
+					direction: 'OUTBOUND',
+					body: message,
+					agentType: 'MANUAL',
+				},
+			});
+			logger.info({ phone, body: message.slice(0, 50) }, 'Manual outbound message saved to database');
+		}
+
 		res.json({ success: true, to, message });
 	} catch (error) {
 		res.status(500).json({ error: 'Error enviando mensaje', details: String(error) });
