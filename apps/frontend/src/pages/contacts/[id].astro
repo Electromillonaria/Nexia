@@ -18,6 +18,8 @@ const { id } = Astro.params;
   const token = localStorage.getItem('crm_token') || '';
   const headers = { Authorization: `Bearer ${token}` };
 
+  let currentContact = null;
+
   function fmtTime(d) {
     return new Date(d).toLocaleString('es-CO', { hour:'2-digit', minute:'2-digit', day:'2-digit', month:'short' });
   }
@@ -57,6 +59,7 @@ const { id } = Astro.params;
       const res = await fetch(`${API}/contacts/${contactId}`, { headers });
       if (!res.ok) { container.innerHTML = '<div class="text-muted">Contacto no encontrado.</div>'; return; }
       const c = await res.json();
+      currentContact = c;
       const lead = c.leads?.slice(-1)[0];
       const messages = c.messages?.sort((a, b) => new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime()) || [];
 
@@ -160,7 +163,7 @@ const { id } = Astro.params;
       const res = await fetch(`${API}/whatsapp/send`, {
         method: 'POST',
         headers: { ...headers, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to: c.phone, message: msg }),
+        body: JSON.stringify({ to: currentContact?.phone, message: msg }),
       });
       const data = await res.json();
       if (res.ok) {
