@@ -13,6 +13,33 @@ function safeParseJson(str: string | null | undefined): any {
 	}
 }
 
+const CIUDADES_CONOCIDAS = [
+	'pasto', 'tumaco', 'ipiales', 'samaniego', 'barbacoas', 'sandoná', 'sandona',
+	'popayán', 'popayan', 'quilichao', 'miranda', 'puerto tejada', 'piendamó', 'piendamo',
+	'mocoa', 'puerto asís', 'puerto asis', 'orito', 'sibundoy', 'villagarzón', 'villagarzon',
+	'neiva', 'pitalito', 'garzón', 'garzon', 'campoalegre',
+	'cali', 'buenaventura', 'palmira', 'tuluá', 'tulua', 'buga', 'cartago', 'jamundí', 'jamundi', 'yumbo',
+	'el peñol', 'peñol',
+];
+
+const DEPARTAMENTOS_CONOCIDOS = [
+	'nariño', 'narino', 'cauca', 'putumayo', 'huila', 'valle', 'valle del cauca',
+];
+
+function extraerCiudad(mensaje: string): string | null {
+	const lower = mensaje.toLowerCase().trim();
+	const todas = [...CIUDADES_CONOCIDAS, ...DEPARTAMENTOS_CONOCIDOS];
+	const encontrada = todas.find((l) => lower.includes(l));
+	if (encontrada) return encontrada;
+
+	// Patrones como "soy de X", "vivo en X", etc.
+	const patron = /(?:soy de|estoy en|vivo en|escribo desde|desde|ubicado en|me encuentro en)\s+([a-záéíóúñ\s]{3,30})/i;
+	const match = mensaje.match(patron);
+	if (match) return match[1].trim().toLowerCase();
+
+	return null;
+}
+
 /**
  * Maneja cada mensaje entrante de WhatsApp:
  * 1. Busca o crea el Contact en BD
@@ -119,6 +146,13 @@ export async function handleIncomingMessage(msg: WAMessage): Promise<void> {
 			extra: safeParseJson(userDataRecord?.extra),
 		};
 
+		// Intentar extraer ciudad directamente del mensaje actual y guardarla
+		// incluso antes de que el agente la procese
+		const ciudadDelMensaje = extraerCiudad(body);
+		if (ciudadDelMensaje && !userData.ciudad) {
+			userData.ciudad = ciudadDelMensaje;
+		}
+
 		const context: Record<string, any> = {
 			contactId: contact.id,
 			phone,
@@ -184,17 +218,23 @@ export async function handleIncomingMessage(msg: WAMessage): Promise<void> {
 		}
 
 		// 9. Guardar datos recolectados por la IA en UserData
-		if (lead && metadata) {
+		if (lead) {
 			const ud: Record<string, any> = {};
-			if (metadata.ciudad) ud.ciudad = metadata.ciudad;
-			if (metadata.departamento) ud.departamento = metadata.departamento;
 
-			const credito = metadata.creditoData;
+			// Prioridad: metadata del agente > detección directa del mensaje > UserData previo
+			if (metadata?.ciudad) {
+				ud.ciudad = metadata.ciudad;
+			} else if (userData.ciudad && userData.ciudad !== userDataRecord?.ciudad) {
+				ud.ciudad = userData.ciudad;
+			}
+			if (metadata?.departamento) ud.departamento = metadata.departamento;
+
+			const credito = metadata?.creditoData;
 			if (credito?.nombres) ud.nombre = credito.nombres;
 			if (credito?.cedula) ud.cedula = credito.cedula;
 			if (credito?.producto) ud.productoSolicitado = credito.producto;
 
-			const repuesto = metadata.repuestoData;
+			const repuesto = metadata?.repuestoData;
 			if (repuesto?.nombreCliente) ud.nombre = repuesto.nombreCliente;
 			if (repuesto?.repuesto) ud.productoSolicitado = repuesto.repuesto;
 
@@ -208,8 +248,7 @@ export async function handleIncomingMessage(msg: WAMessage): Promise<void> {
 					update: { ...ud, extra: JSON.stringify(mergedExtra) },
 					create: { leadId: lead.id, ...ud, extra: JSON.stringify(mergedExtra) },
 				});
-			} else {
-				// Aún sin campos específicos, guardar extra para depuración
+			} else if (metadata) {
 				await prisma.userData.upsert({
 					where: { leadId: lead.id },
 					update: { extra: JSON.stringify(mergedExtra) },
