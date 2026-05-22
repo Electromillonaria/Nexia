@@ -165,7 +165,7 @@ export async function processIncomingMessage(
 	phone: string,
 	body: string,
 	realPhone: string | null = null
-): Promise<{ response: string; agentType: string }> {
+): Promise<{ response: string; agentType: string; contactId?: string; leadId?: string }> {
 	// 1. Upsert del contacto
 	const contact = await (prisma.contact as any).upsert({
 		where: { phone },
@@ -178,20 +178,22 @@ export async function processIncomingMessage(
 		},
 	});
 
-	// 2. Persistir mensaje INBOUND
+	// 2. Obtener historial reciente (últimos 10 mensajes) ANTES de guardar el INBOUND
+	//    para que el orquestador pueda detectar si es el primer mensaje (hasHistory = false)
+	const history = await prisma.message.findMany({
+		where: { contactId: contact.id },
+		orderBy: { sentAt: 'desc' },
+		take: 10,
+	});
+
+	// Guardamos INBOUND para persistencia; el routing usa `history` (sin este mensaje)
+	// para detectar correctamente hasHistory en isGreetingOrVague
 	await prisma.message.create({
 		data: {
 			contactId: contact.id,
 			direction: 'INBOUND',
 			body,
 		},
-	});
-
-	// 3. Obtener historial reciente (últimos 10 mensajes)
-	const history = await prisma.message.findMany({
-		where: { contactId: contact.id },
-		orderBy: { sentAt: 'desc' },
-		take: 10,
 	});
 
 	// 4. Lead activo del contacto (el más reciente)
@@ -261,7 +263,7 @@ export async function processIncomingMessage(
 	// Restaurar flujo y pendingMessage desde UserData.extra
 	// para que el agente sepa que estábamos esperando ciudad/producto/etc.
 	const extra = userData.extra ?? null;
-	if (extra?.flujo) context.flujo = extra.flujo;
+	if (extra?.flujo && typeof extra.flujo === 'string') context.flujo = extra.flujo;
 	if (extra?.pendingMessage) context.pendingMessage = extra.pendingMessage;
 
 	// 6. Enrutar al orquestador

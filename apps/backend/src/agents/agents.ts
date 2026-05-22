@@ -62,15 +62,45 @@ function cleanResponse(raw: string): string {
 		text = text.slice(last.index! + last[0].length).trim();
 	}
 
-	// 4) Cortar checklists tipo "Brief? Yes. Direct? Yes."
-	text = text.replace(
-		/((?:[A-ZÁÉÍÓÚÑa-záéíóúñ"][\wáéíóúñÁÉÍÓÚÑ "]*\?\s*(?:Yes|No|Sí|Si)\.?\s*){2,})/gi,
-		''
-	);
-	text = text.replace(
-		/^[\s"']*[\wáéíóúñÁÉÍÓÚÑ "':]*\?\s*(?:Yes|No|Sí|Si)\.?\s*/i,
-		''
-	).trim();
+	// 4) Cortar checklists y auto-evaluación tipo "Brief? Yes. Direct? Yes."
+	// y extraer el texto de respuesta real que viene después (inline o en línea aparte).
+	const evalLineRe = /^[\wáéíóúñÁÉÍÓÚÑ\/()",.!? ¡¿'-]+\?\s*(?:Yes|No|Sí|Si)/i;
+	const evalLines = text.split('\n').map((l) => l.trim());
+	const evalIndices: number[] = [];
+	evalLines.forEach((l, i) => { if (evalLineRe.test(l)) evalIndices.push(i); });
+
+	if (evalIndices.length >= 2) {
+		// Hay auto-evaluación → reconstruir: eliminar líneas de evaluación y
+		// extraer texto final inline (después del último "Yes." en la misma línea)
+		const keptLines: string[] = [];
+
+		for (let i = 0; i < evalLines.length; i++) {
+			if (evalIndices.includes(i)) {
+				// Línea de evaluación: extraer texto después del último "Yes/No".
+				const m = evalLines[i].match(evalLineRe);
+				if (m) {
+					const after = evalLines[i].slice(m[0].length).trim();
+					if (after) keptLines.push(after);
+				}
+				continue;
+			}
+			// Antes del bloque de evaluación: filtrar ruido, conservar solo si
+			// parece texto de respuesta real (tiene puntuación, mayúscula inicial,
+			// contenido sustancial)
+			if (i < evalIndices[0]) {
+				const t = evalLines[i];
+				if (t.length > 20 && /[.!?¡¿]$/.test(t) && /^[A-ZÁÉÍÓÚÑ¡¿]/i.test(t)) {
+					keptLines.push(t);
+				}
+				continue;
+			}
+			// Después del bloque: todo es texto de respuesta
+			keptLines.push(evalLines[i]);
+		}
+
+		const result = keptLines.join('\n').trim();
+		if (result.length > 10) text = result;
+	}
 
 	// 5) Cortar listas de "User Role:", "Client Goal:", etc.
 	const labelRe = /(?:^|[\s.])(?:user role|client goal|customer goal|customer's current request|customer current request|context(?:\s+from\s+previous\s+examples)?|reference info|style|i need to know|the customer is interested|the draft|following the examples)\s*:?/gi;
@@ -303,12 +333,6 @@ async function verificarCobertura(lugar: string): Promise<'cobertura' | 'sin_cob
 	if (DEPARTAMENTOS_COBERTURA.some((d) => l.includes(d))) return 'cobertura';
 	if (CIUDADES_COBERTURA.some((c) => l.includes(c))) return 'cobertura';
 
-	// Si no se encuentra en listas → preguntar a Gemini como fallback
-	if (l.length > 3) {
-		const iaResult = await verificarCoberturaConIA(l);
-		if (iaResult !== 'desconocido') return iaResult;
-		return 'sin_cobertura';
-	}
 	return 'desconocido';
 }
 
@@ -351,7 +375,7 @@ function setCache(key: string, result: any, ttlMs = 300_000) {
 	IA_CACHE.set(key, { result, expires: Date.now() + ttlMs });
 }
 
-async function detectarCiudadConIA(mensaje: string): Promise<string | null> {
+export async function detectarCiudadConIA(mensaje: string): Promise<string | null> {
 	const key = `ciudad_${mensaje.toLowerCase().trim()}`;
 	const cached = getCached<string | null>(key);
 	if (cached !== null) return cached;
@@ -386,7 +410,7 @@ async function detectarCiudadConIA(mensaje: string): Promise<string | null> {
 	}
 }
 
-async function verificarCoberturaConIA(ciudad: string): Promise<'cobertura' | 'sin_cobertura' | 'desconocido'> {
+export async function verificarCoberturaConIA(ciudad: string): Promise<'cobertura' | 'sin_cobertura' | 'desconocido'> {
 	const key = `cobertura_${ciudad.toLowerCase().trim()}`;
 	const cached = getCached<'cobertura' | 'sin_cobertura' | 'desconocido'>(key);
 	if (cached) return cached;
@@ -630,22 +654,6 @@ async function enviarResumenWhatsApp(resumen: string): Promise<void> {
 export class VentasAgent implements IAgent {
 	name = 'Ventas';
 
-	// ── Formato de productos para el LLM ──────────────────────────────────────
-	private formatProductosParaPrompt(products: any[], mostrarPrecio: boolean): string {
-		if (!products?.length) return 'No se encontraron productos relacionados.';
-		return products
-			.map((p, i) => {
-				// Mejora #6: precio solo si corresponde
-				const precioStr = mostrarPrecio
-					? (p.sale_price
-						? `Precio: ~~$${Number(p.regular_price).toLocaleString('es-CO')}~~ → $${Number(p.sale_price).toLocaleString('es-CO')} (en oferta)`
-						: `Precio: $${Number(p.price).toLocaleString('es-CO')}`)
-					: '';
-				return `${i + 1}. ${p.name}${precioStr ? '\n   ' + precioStr : ''}\n   Ver producto: ${p.permalink}`;
-			})
-			.join('\n\n');
-	}
-
 	// ── Flujo de crédito paso a paso ──────────────────────────────────────────
 	private async manejarFlujoCredito(
 		message: string,
@@ -769,18 +777,24 @@ export class VentasAgent implements IAgent {
 				return this.manejarSinCobertura(ciudadDetectada);
 			}
 
-			context = {
-				...context,
-				ciudadValidada: true,
-				ciudad: ciudadDetectada,
-				tieneCobertura: true,
-				flujo: undefined,
-			};
+			// Ciudad detectada → preguntar qué producto busca (no mostrar catálogo todavía)
+			const tieneEnvioGratis = cobertura === 'cobertura';
+			const envioMsg = tieneEnvioGratis
+				? 'tienes envío gratis'
+				: 'puedes comprar de contado con envío por Coordinadora';
+			const saludo = getSaludo();
 
-			// Retomar el mensaje original pendiente si existe
-			if (context.pendingMessage) {
-				message = context.pendingMessage;
-			}
+			const ciudadCap = ciudadDetectada.charAt(0).toUpperCase() + ciudadDetectada.slice(1);
+			return {
+				response: `${saludo} ¡Qué bien! En ${ciudadCap} ${envioMsg}. Cuéntame, ¿qué referencia o modelo buscas? 😊`,
+				metadata: {
+					agentType: 'ventas',
+					ciudad: ciudadDetectada,
+					ciudadValidada: true,
+					tieneCobertura: tieneEnvioGratis,
+					flujo: null,
+				},
+			};
 		}
 
 		// ── PASO 1: Validar cobertura si aún no se hizo (mejoras #2 y #4) ─────
@@ -874,72 +888,37 @@ export class VentasAgent implements IAgent {
 		// Mejora #6: mostrar precio solo si es flujo de contado
 		const mostrarPrecio = quiereContado || context?.modalidad === 'contado';
 
-		let productosFormateados = '';
+		let products: any[] = [];
 		let hayProductos = false;
 
 		try {
-			let products = await wooCommerceService.searchProducts(message, 4);
-			// Si no encuentra exactos, mostrar el producto más cercano disponible
+			products = await wooCommerceService.searchProducts(message, 4);
 			if (!products || products.length === 0) {
 				const generalProducts = await wooCommerceService.getProducts(3);
 				products = generalProducts.filter((p) => p.name && p.permalink);
 			}
 			hayProductos = products?.length > 0;
-			productosFormateados = hayProductos
-				? this.formatProductosParaPrompt(products.slice(0, 1), mostrarPrecio)
-				: 'No hay productos disponibles en este momento.';
 		} catch {
-			productosFormateados = 'No fue posible consultar el catálogo en este momento.';
+			// si falla, products se queda como []
 		}
 
-		// Mejora #8: NO incluir datos de agencias en la respuesta
-		const instruccion = `Eres ${AGENT_NAME}, asesora comercial de JLC Electronics.
-Tu tono es cálido, claro y directo. Hablas en español colombiano. Tus respuestas son cortas (máximo 3 líneas).
+		// Respuesta con plantilla (sin Gemini) para evitar chain-of-thought
+		const primerProducto = products?.[0];
+		const ciudadStr = context?.ciudad ? `En ${context.ciudad.charAt(0).toUpperCase() + context.ciudad.slice(1)}` : '';
+		const envioStr = context?.tieneCobertura
+			? 'tienes envío gratis'
+			: 'puedes comprar de contado con envío por Coordinadora';
 
-REGLAS:
-- Muestra SIEMPRE el producto del CATÁLOGO aunque no sea el que busca el cliente. Es la mejor alternativa disponible.
-- Máximo 1 producto. Nunca más de 1.
-- Si hay producto en CATÁLOGO, menciónalo con nombre y enlace.
-- No inventes productos ni precios. Solo usa los del CATÁLOGO.
-- ${mostrarPrecio ? 'Puedes mostrar el precio.' : 'NO muestres precios.'}
-- Todos los productos son marca JLC, NO preguntes por la marca. Pregunta por la referencia o el modelo del producto.
-- Si el catálogo está vacío, pide al cliente la referencia del producto que busca.
-- Solo si el cliente insiste 2 veces sin encontrar nada, sugiere visitar https://jlc-electronics.com/
-- Nunca menciones a Cristina ni su número. Ese contacto es solo para emergencias cuando el bot no pueda resolver.
-- Si el cliente menciona crédito o cuotas, indícale que iniciarás el proceso de solicitud.
-- NO compartas números, direcciones ni datos de agencias físicas. Eso lo hace el asesor humano.
-- La ciudad del cliente ya fue validada: ${context?.ciudad || 'no especificada'}. ${context?.tieneCobertura ? 'Tiene cobertura con envío gratis.' : 'Compra de contado, envío por Coordinadora a su cargo.'}
+		let response: string;
 
-MEDIOS DE COMPRA:
-- Contado o crédito (detal).
-- Por mayor: área de distribuidores.
-- Sitio web: https://jlc-electronics.com/
-
-CATÁLOGO PARA ESTE MENSAJE:
-${productosFormateados}`;
-
-		const { system, user } = buildGemmaPrompt({
-			instruccion,
-			ejemplos: [
-				{
-					cliente: 'Quiero una nevera',
-					asistente: '¡Con gusto! ¿La compra sería al contado o a crédito?',
-				},
-				{
-					cliente: 'Quiero pagar a crédito',
-					asistente: 'Perfecto, te ayudo con el proceso. ¿Qué tipo de nevera buscas? Así identificamos la referencia antes de iniciar la solicitud.',
-				},
-				{
-					cliente: '¿Tienen neveras de 300 litros?',
-					asistente: 'Sí, tenemos opciones disponibles. ¿La compra sería al contado o a crédito para mostrarte las que aplican?',
-				},
-			],
-			historial: formatHistory(context?.history),
-			mensajeCliente: message,
-		});
-
-		const raw = await generateResponse(user, system);
-		const response = cleanResponse(raw);
+		if (primerProducto) {
+			const precioStr = mostrarPrecio && primerProducto.price
+				? ` - $${Number(primerProducto.price).toLocaleString('es-CO')}`
+				: '';
+			response = `${ciudadStr} ${envioStr}. Te recomiendo nuestro *${primerProducto.name}*${precioStr}:\n${primerProducto.permalink}\n\n¿Te interesa esta opción o buscas algo diferente?`;
+		} else {
+			response = `${ciudadStr} ${envioStr}. Cuéntame más detalles de la referencia o modelo que buscas para ayudarte mejor. 😊`;
+		}
 
 		return {
 			response,
@@ -986,9 +965,9 @@ async function extraerCiudadDelMensaje(mensaje: string): Promise<string | null> 
 			);
 			if (algunaCoincide) return trimmed;
 
-			// Fallback: si parece una ubicación pero no está en listas, preguntar a Gemini
-			const iaResult = await detectarCiudadConIA(mensaje);
-			if (iaResult) return iaResult;
+			// Sin fallback a Gemini: si la palabra no coincide con ninguna ciudad conocida,
+			// retornamos null para que el flujo PASO 2 (message.trim()) la capture cuando
+			// el bot está esperando explícitamente la ubicación.
 		}
 	}
 
