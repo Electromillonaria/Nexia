@@ -912,20 +912,26 @@ export class VentasAgent implements IAgent {
 			// Extraer producto de la última búsqueda o del mensaje del usuario
 			const ultimosProductos = context?.ultimaBusqueda?.results ?? [];
 			let productoSolicitado: string | undefined;
+			let productoURL: string | undefined;
 			if (ultimosProductos.length === 1) {
 				productoSolicitado = ultimosProductos[0].name;
+				productoURL = ultimosProductos[0].permalink;
 			} else if (ultimosProductos.length > 1) {
-				// Intentar detectar cuál producto menciona en su mensaje
 				const lowerMsg = message.toLowerCase();
 				const match = ultimosProductos.find((p: any) =>
 					p.name.toLowerCase().includes(lowerMsg) ||
 					lowerMsg.includes(p.name.toLowerCase().slice(0, 20))
 				);
-				productoSolicitado = match?.name ?? ultimosProductos[0].name;
+				const selected = match ?? ultimosProductos[0];
+				productoSolicitado = selected.name;
+				productoURL = selected.permalink;
 			}
 
+			const formasPago = tieneCobertura ? 3 : 2;
+			const opcionesMsg = `Tenemos ${formasPago} formas de pago:\n1️⃣ Medios de pago autorizados\n2️⃣ Paga directamente en nuestra página web${opcionPuntoFisico}\n¿Cuál prefieres?`;
+
 			return {
-				response: `Tenemos 3 formas de pago:\n1️⃣ Medios de pago autorizados\n2️⃣ Paga directamente en nuestra página web${opcionPuntoFisico}\n¿Cuál prefieres?`,
+				response: opcionesMsg,
 				metadata: {
 					agentType: 'ventas',
 					flujo: 'seleccion_pago',
@@ -934,12 +940,13 @@ export class VentasAgent implements IAgent {
 					ciudadValidada: true,
 					tieneCobertura,
 					...(productoSolicitado ? { productoCompra: productoSolicitado } : {}),
+					...(productoURL ? { productoURL } : {}),
 				},
 			};
 		}
 
 		// ── PASO 4b: Consulta genérica sobre cómo pagar ─────────────────────
-		const preguntaPago = /\b(?:c[oó]mo (?:pagar|puedo pagar|hago para pagar)|medios de pago|formas de pago|d[oó]nde pago|puedo pagar)\b/i.test(message);
+		const preguntaPago = /\b(?:c[oó]mo (?:pagar|pago|puedo pagar|hago para pagar)|medios de pago|formas de pago|d[oó]nde pago|puedo pagar)\b/i.test(message);
 		if (preguntaPago && context?.modalidad === 'contado' && !context?.flujo?.startsWith('pago_') && context?.flujo !== 'seleccion_pago') {
 			const tieneCobertura = context?.tieneCobertura;
 			return {
@@ -1011,6 +1018,10 @@ export class VentasAgent implements IAgent {
 		// ── PASO 5: Flujo de selección de pago ──────────────────────────────
 		if (context?.flujo === 'seleccion_pago') {
 			const opcion = message.trim();
+			// Recuperar URL del producto desde la última búsqueda o contexto
+			const ultimosProductos = context?.ultimaBusqueda?.results ?? [];
+			const productoURL = context?.productoURL ?? ultimosProductos[0]?.permalink;
+
 			if (/1|medios de pago|medios autorizados/i.test(opcion)) {
 				return {
 					response: `Estos son nuestros medios de pago autorizados:\nhttps://jlc-electronics.com/wp-content/uploads/2026/05/Medios_de_pago.jpeg\n\n¿Con cuál deseas pagar?`,
@@ -1019,17 +1030,22 @@ export class VentasAgent implements IAgent {
 						flujo: 'pago_medios',
 						ciudad: context?.ciudad,
 						ciudadValidada: true,
+						productoURL,
 					},
 				};
 			}
 			if (/2|p[aá]gina web|web|en l[íi]nea|online/i.test(opcion)) {
+				const productLink = productoURL
+					? `\n\nLink del producto:\n${productoURL}`
+					: '';
 				return {
-					response: `Puedes pagar directamente en nuestra página:\nhttps://jlc-electronics.com/\n\n¿Quieres que te acompañe paso a paso con el proceso?`,
+					response: `Puedes pagar directamente en nuestra página web.${productLink}\n\n¿Quieres que te acompañe paso a paso con el proceso?`,
 					metadata: {
 						agentType: 'ventas',
 						flujo: 'pago_web',
 						ciudad: context?.ciudad,
 						ciudadValidada: true,
+						productoURL,
 					},
 				};
 			}
