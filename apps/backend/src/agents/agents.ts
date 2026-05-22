@@ -718,19 +718,6 @@ export class VentasAgent implements IAgent {
 		};
 	}
 
-	// ── Flujo sin cobertura ───────────────────────────────────────────────────
-	// Mejora #3: informar condiciones y preguntar si desea continuar
-	private manejarSinCobertura(ciudad: string): AgentResponse {
-		return {
-			response: `Revisé tu ubicación (${ciudad}) y en este momento no tenemos cobertura con envío directo en esa zona.\n\nSin embargo, puedes comprar de *contado* y el envío se hace por transportadora *Coordinadora*. El costo del flete se cobrará al momento de realizar el pedido.\n\n¿Deseas continuar con esa modalidad? Responde *Sí* para seguir o *No* si prefieres esperar a que lleguemos a tu ciudad. 😊`,
-			metadata: {
-				agentType: 'ventas',
-				flujo: 'sin_cobertura',
-				ciudad,
-			},
-		};
-	}
-
 	// ── Handle principal ──────────────────────────────────────────────────────
 	async handle(message: string, context: any): Promise<AgentResponse> {
 		const lower = message.toLowerCase().trim();
@@ -738,21 +725,6 @@ export class VentasAgent implements IAgent {
 		// ── Flujo de crédito activo ────────────────────────────────────────────
 		if (context?.flujo === 'credito') {
 			return this.manejarFlujoCredito(message, context);
-		}
-
-		// ── Cliente decidió NO continuar sin cobertura (mejora #3) ────────────
-		if (context?.flujo === 'sin_cobertura') {
-			const noQuiere = /\bno\b|no gracias|no quiero|no por ahora|prefiero no/i.test(lower);
-			if (noQuiere) {
-				return {
-					response: `Entendido, no hay problema. Cuando JLC tenga cobertura en tu ciudad te podremos atender con todas las opciones. ¡Hasta pronto! 😊`,
-					nextStage: 'OTRAS_CIUDADES',
-					metadata: { agentType: 'ventas', flujo: 'otras_ciudades', ciudad: context.ciudad },
-				};
-			}
-			// Sí quiere continuar → clasificar como contado sin cobertura
-			// Continúa al flujo normal pero forzando modalidad contado
-			context = { ...context, flujo: 'contado_sin_cobertura', modalidad: 'contado' };
 		}
 
 		// ── Pre-poblar ciudad desde UserData si ya está guardada ─────────────
@@ -766,33 +738,82 @@ export class VentasAgent implements IAgent {
 		}
 
 		// ── SI ESTAMOS ESPERANDO CIUDAD, procesar primero (PASO 2) ─────────
-		// Esto evita el loop infinito cuando el usuario da una ciudad que no está
-		// en las listas de cobertura (ej: Bogotá) — el fallback message.trim()
-		// captura cualquier texto como ciudad en lugar de preguntar otra vez.
 		if (context?.flujo === 'esperando_ciudad') {
 			const ciudadDetectada = (await extraerCiudadDelMensaje(message)) || message.trim();
 			const cobertura = await verificarCobertura(ciudadDetectada);
+			const ciudadCap = ciudadDetectada.charAt(0).toUpperCase() + ciudadDetectada.slice(1);
 
-			if (cobertura === 'sin_cobertura') {
-				return this.manejarSinCobertura(ciudadDetectada);
+			if (cobertura === 'cobertura') {
+				return {
+					response: `${getSaludo()} ¡Qué bien! En ${ciudadCap} tienes cobertura con envío gratis.\n\n¿La compra sería al *contado* o a *crédito*? 😊`,
+					metadata: {
+						agentType: 'ventas',
+						ciudad: ciudadDetectada,
+						ciudadValidada: true,
+						tieneCobertura: true,
+						flujo: 'esperando_modalidad',
+					},
+				};
 			}
 
-			// Ciudad detectada → preguntar qué producto busca (no mostrar catálogo todavía)
-			const tieneEnvioGratis = cobertura === 'cobertura';
-			const envioMsg = tieneEnvioGratis
-				? 'tienes envío gratis'
-				: 'puedes comprar de contado o a crédito';
-			const saludo = getSaludo();
-
-			const ciudadCap = ciudadDetectada.charAt(0).toUpperCase() + ciudadDetectada.slice(1);
+			// Sin cobertura o desconocido → solo contado, preguntar producto directo
 			return {
-				response: `${saludo} ¡Qué bien! En ${ciudadCap} ${envioMsg}. Cuéntame, ¿qué referencia o modelo buscas? 😊`,
+				response: `${getSaludo()} ¡Qué bien! En ${ciudadCap} no tenemos cobertura directa, el envío sería por Coordinadora (el flete se cobra al hacer el pedido).\n\nCuéntame, ¿qué producto o referencia buscas? 😊`,
 				metadata: {
 					agentType: 'ventas',
 					ciudad: ciudadDetectada,
 					ciudadValidada: true,
-					tieneCobertura: tieneEnvioGratis,
+					tieneCobertura: false,
+					modalidad: 'contado',
 					flujo: null,
+				},
+			};
+		}
+
+		// ── SI ESTAMOS ESPERANDO MODALIDAD (contado / crédito) ─────────────
+		if (context?.flujo === 'esperando_modalidad') {
+			const quiereCredito = /cr[eé]dito|a cr[eé]dito|financiar|financiaci[oó]n|cuotas|pagar a cuotas|1/i.test(lower);
+			const quiereContado = /contado|efectivo|pago inmediato|precio de contado|contadito|2/i.test(lower);
+
+			if (quiereCredito) {
+				return {
+					response: `Perfecto, te ayudo con el proceso de crédito 📋\n\nVoy a hacerte unas preguntas para diligenciar tu solicitud. Son ${CREDITO_STEPS.length} campos en total, uno por uno.\n\n${CREDITO_STEPS[0].pregunta}`,
+					metadata: {
+						agentType: 'ventas',
+						flujo: 'credito',
+						modalidad: 'credito',
+						creditoData: {},
+						creditoStep: 1,
+						ciudad: context?.ciudad,
+						ciudadValidada: true,
+						tieneCobertura: context?.tieneCobertura,
+					},
+				};
+			}
+
+			if (quiereContado) {
+				return {
+					response: `¡Perfecto! Cuéntame, ¿qué producto o referencia buscas? Así te muestro lo que tenemos disponible 😊`,
+					metadata: {
+						agentType: 'ventas',
+						modalidad: 'contado',
+						ciudad: context?.ciudad,
+						ciudadValidada: true,
+						tieneCobertura: context?.tieneCobertura,
+						flujo: null,
+					},
+				};
+			}
+
+			// No entendió → preguntar de nuevo
+			return {
+				response: `Disculpa, no entendí. ¿La compra sería al *contado* o a *crédito*?\n\nResponde *1* o *contado* si pagas de contado, o *2* o *crédito* si deseas financiar.`,
+				metadata: {
+					agentType: 'ventas',
+					flujo: 'esperando_modalidad',
+					ciudad: context?.ciudad,
+					ciudadValidada: true,
+					tieneCobertura: context?.tieneCobertura,
 				},
 			};
 		}
@@ -816,80 +837,68 @@ export class VentasAgent implements IAgent {
 
 			const cobertura = await verificarCobertura(ciudadDetectada);
 
-			if (cobertura === 'sin_cobertura') {
-				return this.manejarSinCobertura(ciudadDetectada);
+			if (cobertura === 'cobertura') {
+				context = {
+					...context,
+					ciudadValidada: true,
+					ciudad: ciudadDetectada,
+					tieneCobertura: true,
+				};
+				return {
+					response: `${getSaludo()} ¡Qué bien! En ${ciudadDetectada} tienes cobertura con envío gratis.\n\n¿La compra sería al *contado* o a *crédito*? 😊`,
+					metadata: {
+						agentType: 'ventas',
+						ciudad: ciudadDetectada,
+						ciudadValidada: true,
+						tieneCobertura: true,
+						flujo: 'esperando_modalidad',
+					},
+				};
 			}
 
-			// Con cobertura o zona desconocida → marcar ciudad como validada
+			// Sin cobertura o desconocido → solo contado, preguntar producto directo
 			context = {
 				...context,
 				ciudadValidada: true,
 				ciudad: ciudadDetectada,
-				tieneCobertura: cobertura === 'cobertura',
+				tieneCobertura: false,
 			};
-
-			// La ciudad se acaba de detectar en este mensaje.
-			// No mostrar productos todavía — primero preguntar qué necesita.
-			const saludo = getSaludo();
 			return {
-				response: `${saludo} ¡Qué bien! En ${ciudadDetectada} tienes cobertura con envío gratis. Cuéntame, ¿qué referencia o modelo buscas? 😊`,
+				response: `${getSaludo()} ¡Qué bien! En ${ciudadDetectada} no tenemos cobertura directa, el envío sería por Coordinadora (el flete se cobra al hacer el pedido).\n\nCuéntame, ¿qué producto o referencia buscas? 😊`,
 				metadata: {
 					agentType: 'ventas',
 					ciudad: ciudadDetectada,
 					ciudadValidada: true,
-					tieneCobertura: context.tieneCobertura,
+					tieneCobertura: false,
+					modalidad: 'contado',
+					flujo: null,
 				},
 			};
 		}
 
-		// ── PASO 3: Detectar modalidad contado o crédito (mejora #5 y #6) ─────
-		const quiereCredito = /cr[eé]dito|a cr[eé]dito|financiar|financiaci[oó]n|cuotas|pagar a cuotas/i.test(message);
-		const quiereContado = /contado|efectivo|pago inmediato|precio de contado|cu[aá]nto vale|cu[aá]nto cuesta|precio/i.test(message);
-
-		// Mejora #5 y #7: crédito → solo perfilar producto y transferir
-		if (quiereCredito || context?.modalidad === 'credito') {
-			// Detectar si ya se identificó el producto
-			const productoIdentificado = context?.productoCredito;
-
-			if (!productoIdentificado) {
-				// Perfilar el producto (pulgadas, litros, kilos según tipo)
-				const perfilProducto = generarPreguntaPerfilProducto(message);
-
-				if (perfilProducto) {
-					return {
-						response: perfilProducto,
-						metadata: {
-							agentType: 'ventas',
-							flujo: 'credito_perfilando',
-							modalidad: 'credito',
-							ciudadValidada: context?.ciudadValidada,
-							ciudad: context?.ciudad,
-						},
-					};
-				}
-			}
-
-			// Producto ya identificado o no se pudo perfilar más → iniciar formulario
+		// ── PASO 3: Si eligió crédito → iniciar formulario ──────────────────
+		if (context?.modalidad === 'credito') {
 			return {
 				response: `Perfecto, te ayudo con el proceso de crédito 📋\n\nVoy a hacerte unas preguntas para diligenciar tu solicitud. Son ${CREDITO_STEPS.length} campos en total, uno por uno.\n\n${CREDITO_STEPS[0].pregunta}`,
 				metadata: {
 					agentType: 'ventas',
 					flujo: 'credito',
 					modalidad: 'credito',
-					creditoData: context?.productoCredito ? { producto: context.productoCredito } : {},
-					creditoStep: context?.productoCredito ? 1 : 1,
-					ciudadValidada: context?.ciudadValidada,
+					creditoData: {},
+					creditoStep: 1,
 					ciudad: context?.ciudad,
+					ciudadValidada: true,
+					tieneCobertura: context?.tieneCobertura,
 				},
 			};
 		}
 
 		// ── Flujo normal de ventas (contado) ───────────────────────────────────
-		const mostrarPrecio = quiereContado || context?.modalidad === 'contado';
+		const mostrarPrecio = true;
 		const ciudadStr = context?.ciudad ? `En ${context.ciudad.charAt(0).toUpperCase() + context.ciudad.slice(1)}` : '';
 		const envioStr = context?.tieneCobertura
 			? 'tienes envío gratis'
-			: 'puedes comprar de contado o a crédito';
+			: 'pago de contado (flete por Coordinadora a cargo del cliente)';
 
 		// Detectar si pide más opciones
 		const pideMas = /(?:tienes\s*mas|hay\s*m[áa]s|m[áa]s\s*opciones|otr[oa]s?\s*opciones|quiero\s*ver\s*m[áa]s|mu[ée]strame\s*m[áa]s|busco\s*otr[oa]|alg[úu]n\s*otr[oa]|otr[oa]s?\s*opciones|diferente)/i.test(message);
@@ -1037,28 +1046,6 @@ async function extraerCiudadDelMensaje(mensaje: string): Promise<string | null> 
 	}
 
 	return null;
-}
-
-// ─── Helper: pregunta de perfilamiento para crédito (mejora #5) ───────────────
-
-function generarPreguntaPerfilProducto(mensaje: string): string | null {
-	const lower = mensaje.toLowerCase();
-
-	if (/televisor|tv\b|tele\b|pantalla/i.test(lower)) {
-		return '¿De cuántas pulgadas necesitas el televisor? (ej: 32", 43", 55")';
-	}
-	if (/nevera|refrigerador|ref[eé]r|congelador/i.test(lower)) {
-		return '¿De cuántos litros necesitas la nevera? (ej: 250 lt, 300 lt, 400 lt)';
-	}
-	if (/lavadora/i.test(lower)) {
-		return '¿De cuántos kilos necesitas la lavadora? (ej: 8 kg, 10 kg, 14 kg)';
-	}
-	if (/microondas/i.test(lower)) {
-		return '¿De cuántos litros o watts necesitas el microondas?';
-	}
-
-	// Producto no identificado aún
-	return '¿Qué producto te interesa financiar? (ej: nevera, lavadora, televisor...)';
 }
 
 // ─── AGENTE CARTERA ──────────────────────────────────────────────────────────
