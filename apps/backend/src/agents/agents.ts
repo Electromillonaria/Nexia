@@ -722,7 +722,7 @@ export class VentasAgent implements IAgent {
 	// Mejora #3: informar condiciones y preguntar si desea continuar
 	private manejarSinCobertura(ciudad: string): AgentResponse {
 		return {
-			response: `Revisé tu ubicación (${ciudad}) y en este momento no tenemos cobertura con envío directo en esa zona.\n\nSin embargo, puedes comprar de *contado* y el envío se hace por transportadora *Coordinadora* (el flete corre por tu cuenta).\n\n¿Deseas continuar con esa modalidad? Responde *Sí* para seguir o *No* si prefieres esperar a que lleguemos a tu ciudad. 😊`,
+			response: `Revisé tu ubicación (${ciudad}) y en este momento no tenemos cobertura con envío directo en esa zona.\n\nSin embargo, puedes comprar de *contado* y el envío se hace por transportadora *Coordinadora*. El costo del flete se cobrará al momento de realizar el pedido.\n\n¿Deseas continuar con esa modalidad? Responde *Sí* para seguir o *No* si prefieres esperar a que lleguemos a tu ciudad. 😊`,
 			metadata: {
 				agentType: 'ventas',
 				flujo: 'sin_cobertura',
@@ -781,7 +781,7 @@ export class VentasAgent implements IAgent {
 			const tieneEnvioGratis = cobertura === 'cobertura';
 			const envioMsg = tieneEnvioGratis
 				? 'tienes envío gratis'
-				: 'puedes comprar de contado con envío por Coordinadora';
+				: 'puedes comprar de contado o a crédito';
 			const saludo = getSaludo();
 
 			const ciudadCap = ciudadDetectada.charAt(0).toUpperCase() + ciudadDetectada.slice(1);
@@ -889,7 +889,7 @@ export class VentasAgent implements IAgent {
 		const ciudadStr = context?.ciudad ? `En ${context.ciudad.charAt(0).toUpperCase() + context.ciudad.slice(1)}` : '';
 		const envioStr = context?.tieneCobertura
 			? 'tienes envío gratis'
-			: 'puedes comprar de contado con envío por Coordinadora';
+			: 'puedes comprar de contado o a crédito';
 
 		// Detectar si pide más opciones
 		const pideMas = /(?:tienes\s*mas|hay\s*m[áa]s|m[áa]s\s*opciones|otr[oa]s?\s*opciones|quiero\s*ver\s*m[áa]s|mu[ée]strame\s*m[áa]s|busco\s*otr[oa]|alg[úu]n\s*otr[oa]|otr[oa]s?\s*opciones|diferente)/i.test(message);
@@ -1052,12 +1052,6 @@ function generarPreguntaPerfilProducto(mensaje: string): string | null {
 	}
 	if (/lavadora/i.test(lower)) {
 		return '¿De cuántos kilos necesitas la lavadora? (ej: 8 kg, 10 kg, 14 kg)';
-	}
-	if (/estufa|cocina/i.test(lower)) {
-		return '¿La estufa sería a gas, eléctrica o mixta?';
-	}
-	if (/aire|a\/c|acondicionado/i.test(lower)) {
-		return '¿Para cuántos metros cuadrados necesitas el aire acondicionado?';
 	}
 	if (/microondas/i.test(lower)) {
 		return '¿De cuántos litros o watts necesitas el microondas?';
