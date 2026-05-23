@@ -1,6 +1,64 @@
 import { generateResponse } from '../utils/gemini.js';
 import { wooCommerceService } from '../woocommerce/woocommerce.service.js';
 import { sendMessage as sendWA } from '../whatsapp/whatsapp.js';
+import categoriasData from './categorias-generales.json';
+
+// ─── Construir términos de búsqueda desde categorias-generales.json ────────────
+
+interface CatItem { nombre: string; url: string; }
+interface SubCat { nombre: string; items?: CatItem[]; }
+interface Categoria { nombre: string; subcategorias: SubCat[]; }
+interface Catalogo { categorias: Categoria[]; }
+
+const catalogo = categoriasData as unknown as Catalogo;
+
+/** Extrae todos los nombres de items (singular) y genera variantes de búsqueda */
+function buildCategoriaPatterns(): RegExp {
+	const terminos: string[] = [];
+	const alias: Record<string, string[]> = {
+		'televisores': ['tv', 'televisor'],
+		'neveras': ['nevera', 'refrigerador', 'refri', 'neumático'],
+		'lavadoras': ['lavadora', 'lavadoras automáticas', 'lavadoras semiautomáticas', 'lavasecadora'],
+		'congeladores': ['congelador'],
+		'nevecones': ['nevecon'],
+		'minibar': ['minibar', 'bar'],
+		'freidora': ['freidora', 'freidoras', 'freidora de aire'],
+		'parlantes portables': ['parlante', 'parlantes', 'bocina', 'altavoz'],
+		'torres de sonido': ['torre de sonido', 'torre de audio'],
+		'cabinas': ['cabina', 'cabina de sonido'],
+		'cafeteras': ['cafetera'],
+		'licuadora': ['licuadora', 'licuadoras'],
+		'ollas arroceras': ['olla arrocera', 'arrocera'],
+		'ollas presión': ['olla presión', 'olla a presión', 'olla pitadora'],
+	};
+
+	// Extraer nombres del JSON
+	for (const cat of catalogo.categorias) {
+		for (const sub of cat.subcategorias) {
+			if (sub.nombre) terminos.push(sub.nombre.toLowerCase());
+			for (const item of sub.items || []) {
+				const name = item.nombre.toLowerCase();
+				terminos.push(name);
+				// Agregar alias si existen
+				if (alias[name]) terminos.push(...alias[name]);
+			}
+		}
+	}
+
+	// Limpiar y deduplicar
+	const unicos = [...new Set(terminos.map(t => t.trim().replace(/[^a-záéíóúñ\s]+/g, '')))]
+		.filter(t => t.length > 2);
+
+	// Ordenar de más largos a más cortos para que coincida primero "lavadoras semiautomáticas"
+	unicos.sort((a, b) => b.length - a.length);
+
+	// Escapar caracteres especiales para regex
+	const escapar = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+	const pattern = unicos.map(s => escapar(s)).join('|');
+	return new RegExp(`(?:${pattern})\\b`, 'i');
+}
+
+const CATEGORIAS_RE = buildCategoriaPatterns();
 
 export interface AgentResponse {
 	response: string;
@@ -1130,7 +1188,7 @@ export class VentasAgent implements IAgent {
 		}
 
 		// ── PASO 7: Perfilación de producto (categoría general sin especificar) ─
-		const CATEGORIAS = /(?:televisor|televisores|tv|nevera|neveras|refrigerador|lavadora|lavadoras|estufa|microondas|microhondas|licuadora|aire acondicionado|congelador|parlante|parlantes|sonido|equipo de sonido|horno|hornos|freidora|freidoras|batidora|plancha|ventilador|extractor|calentador|dispensador|pulidora|taladro|esmeril|soldador|compresor|bomba|motor)\b/i;
+		const CATEGORIAS = CATEGORIAS_RE;
 		const esCategoriaSola = CATEGORIAS.test(message) && message.split(/\s+/).length <= 4;
 		const esBusquedaCategoria = CATEGORIAS.test(message) && /(?:busco|quiero|necesito|me interesa|tiene[ns]?|hay|venden|muestra|quisiera|info de|informacion de|precio de|precios de|cuesta|cuestan|vale|valen|consulta)/i.test(message);
 		const categoriaGeneral = esCategoriaSola || esBusquedaCategoria;
