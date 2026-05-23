@@ -1130,7 +1130,10 @@ export class VentasAgent implements IAgent {
 		}
 
 		// ── PASO 7: Perfilación de producto (categoría general sin especificar) ─
-		const categoriaGeneral = /^(?:busco|quiero|necesito|me interesa|tiene[ns]?)\s*(?:un[oa]?|unas?|información de|info de)?\s*(televisor|televisores|tv|nevera|neveras|refrigerador|lavadora|lavadoras|estufa|microondas|licuadora|aire acondicionado|congelador|parlante|parlantes|sonido|equipo de sonido)\b/i.test(message);
+		const CATEGORIAS = /(?:televisor|televisores|tv|nevera|neveras|refrigerador|lavadora|lavadoras|estufa|microondas|microhondas|licuadora|aire acondicionado|congelador|parlante|parlantes|sonido|equipo de sonido|horno|hornos|freidora|freidoras|batidora|plancha|ventilador|extractor|calentador|dispensador|pulidora|taladro|esmeril|soldador|compresor|bomba|motor)\b/i;
+		const esCategoriaSola = CATEGORIAS.test(message) && message.split(/\s+/).length <= 4;
+		const esBusquedaCategoria = CATEGORIAS.test(message) && /(?:busco|quiero|necesito|me interesa|tiene[ns]?|hay|venden|muestra|quisiera|info de|informacion de|precio de|precios de|cuesta|cuestan|vale|valen|consulta)/i.test(message);
+		const categoriaGeneral = esCategoriaSola || esBusquedaCategoria;
 		const yaTieneTamano = /(\d+\s*(?:pulgadas|pulg|lt|litros|kg|kilos))|(?:grande|pequeñ[oa]|mediano|mediana)/i.test(message);
 		const yaTienePresupuesto = context?.userData?.presupuesto || context?.presupuesto;
 
@@ -1206,6 +1209,35 @@ export class VentasAgent implements IAgent {
 		// Extraer término de producto para guardar como productoSolicitado
 		const busquedaMatch = message.match(/(?:busco|quiero|necesito|tiene[ns]?|hay|venden|muestra|muestrame|quisiera|me interesa|info de|informacion de)\s*(?:un[oa]?|unas?|disponible)?\s*([a-záéíóúñÁÉÍÓÚÑ][a-záéíóúñÁÉÍÓÚÑ\s]{2,40})/i);
 		const productoBuscado = busquedaMatch ? busquedaMatch[1].trim() : terminoBusqueda;
+
+		// ── Seguimiento: preguntas sobre productos ya mostrados ────────────
+		const preguntaSeguimiento = /(?:especificaciones?|caracter[ií]sticas?|detalles?|d[ée]tal|cu[aá]nto cuesta|cu[aá]nto vale|cu[aá]l es|en qu[eé] se diferencia|diferencia|c[oó]mo es|descr[ií]belo|dimensiones|medidas|capacidad|color|modelo|referencia|precio|m[aá]s info|m[aá]s informaci[oó]n)/i.test(message) && context?.ultimaBusqueda?.results?.length > 0;
+
+		if (preguntaSeguimiento) {
+			const guardados = context.ultimaBusqueda.results as any[];
+			const detalles = guardados.slice(0, 3).map((p: any) => {
+				const precio = p.price ? `$${Number(p.price).toLocaleString('es-CO')}` : 'Consultar precio';
+				const desc = (p.short_description || p.description || '')
+					.replace(/<[^>]+>/g, '')
+					.replace(/&[a-z]+;/g, ' ')
+					.replace(/\s+/g, ' ')
+					.trim()
+					.slice(0, 200);
+				return `${p.name} — ${precio}\n   ${desc ? desc + '...' : ''}\n   ${p.permalink}`;
+			}).join('\n\n');
+
+			return {
+				response: `Claro, aquí tienes los detalles:\n\n${detalles}\n\n¿Te gusta alguna? Puedo ayudarte con la compra.`,
+				nextStage: 'PROPOSAL',
+				metadata: {
+					agentType: 'ventas',
+					ciudadValidada: context?.ciudadValidada,
+					ciudad: context?.ciudad,
+					ultimaBusqueda: context?.ultimaBusqueda,
+					...datosPersonales,
+				},
+			};
+		}
 
 		if (pideMas) {
 			const busquedaGuardada = context?.ultimaBusqueda;
