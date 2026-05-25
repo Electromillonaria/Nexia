@@ -103,12 +103,21 @@ Ejemplo: {"datos":{"nombre":"Carlos","ciudad":"Medellín"}}
 Si no hay datos nuevos: {"datos":{}}`;
 
 		const raw = await generateResponse(prompt);
-		// Extraer solo el JSON del texto (buscar primer { y último })
-		const jsonStart = raw.indexOf('{');
-		const jsonEnd = raw.lastIndexOf('}');
-		const jsonStr = jsonStart >= 0 && jsonEnd > jsonStart
-			? raw.slice(jsonStart, jsonEnd + 1).trim()
-			: raw.replace(/```json\s*|\s*```/g, '').trim();
+
+		// Extraer el PRIMER objeto JSON completo del texto
+		function extraerPrimerJson(texto: string): string {
+			const inicio = texto.indexOf('{');
+			if (inicio < 0) return texto;
+			let profundidad = 0;
+			for (let i = inicio; i < texto.length; i++) {
+				if (texto[i] === '{') profundidad++;
+				else if (texto[i] === '}') profundidad--;
+				if (profundidad === 0) return texto.slice(inicio, i + 1);
+			}
+			return texto.slice(inicio);
+		}
+
+		const jsonStr = extraerPrimerJson(raw);
 		const parsed = JSON.parse(jsonStr);
 		const datos: Record<string, string> = parsed.datos || {};
 
