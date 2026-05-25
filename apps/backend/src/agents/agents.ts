@@ -61,6 +61,179 @@ function buildCategoriaPatterns(): RegExp {
 
 const CATEGORIAS_RE = buildCategoriaPatterns();
 
+// ─── Motor de perfilamiento por categoría ──────────────────────────────────
+
+interface ProfilingStep {
+	field: string;
+	pregunta: string;
+}
+
+const PROFILING_STEPS: Record<string, ProfilingStep[]> = {
+	lavadora: [
+		{ field: 'tipo', pregunta: '¿La prefieres automática o semiautomática? 🧺\n\n🔵 Automática\n🟢 Semiautomática\n🤷 No estoy seguro' },
+		{ field: 'personas', pregunta: '¿Para cuántas personas sería el uso en tu hogar? 👥\n\n- 1 a 2 personas\n- 3 a 4 personas\n- 5 o más personas' },
+		{ field: 'presupuesto', pregunta: '¿Qué presupuesto aproximado tienes en mente? 💰\n\n- Menos de $800.000\n- Entre $800.000 y $1.200.000\n- Lo que sea necesario' },
+	],
+	televisor: [
+		{ field: 'espacio', pregunta: '¿Para qué espacio de tu hogar buscas el televisor? 📺\n\n- Sala\n- Habitación\n- Cocina o negocio' },
+		{ field: 'tamano', pregunta: '¿Qué tamaño de pantalla te gustaría? 📏\n\n- Pequeño (32" a 43")\n- Mediano (50" a 55")\n- Grande (65" o más)\n- No estoy seguro' },
+		{ field: 'smart', pregunta: '¿Es indispensable que sea Smart TV con acceso a aplicaciones? 🌐\n\n- Sí, indispensable\n- No importa / No es necesario' },
+	],
+	nevera: [
+		{ field: 'personas', pregunta: '¿Para cuántas personas sería la nevera? ❄️\n\n- 1 a 2 personas\n- 3 a 4 personas\n- 5 o más personas' },
+		{ field: 'espacio', pregunta: '¿Dispones de un espacio amplio o reducido en tu cocina? 📐\n\n- Amplio\n- Reducido' },
+		{ field: 'presupuesto', pregunta: '¿Qué presupuesto aproximado tienes en mente? 💰\n\n- Menos de $900.000\n- Entre $900.000 y $1.500.000\n- Sin límite' },
+	],
+	aire: [
+		{ field: 'espacio', pregunta: '¿Para qué tipo de espacio buscas el aire acondicionado? ❄️\n\n- Habitación\n- Sala o comedor\n- Oficina o local comercial' },
+		{ field: 'tamano', pregunta: '¿Qué tamaño aproximado tiene el espacio? 📏\n\n- Menos de 15 m²\n- Entre 15 y 25 m²\n- Más de 25 m²' },
+		{ field: 'inverter', pregunta: '¿Lo prefieres Inverter (ahorra hasta 60% de energía) o convencional (más económico de entrada)? 🟢\n\n- Inverter (Recomendado)\n- Convencional\n- No estoy seguro' },
+	],
+	otra: [
+		{ field: 'uso', pregunta: '¿Para qué lo vas a usar principalmente? 😊' },
+		{ field: 'presupuesto', pregunta: '¿Tienes algún presupuesto en mente aproximadamente? 💰' },
+	],
+};
+
+function resolverRespuestaPerfil(msg: string, field: string): string {
+	const lower = msg.toLowerCase().trim();
+	if (field === 'tipo') {
+		if (/semi/i.test(lower)) return 'semiautomatica';
+		if (/auto/i.test(lower)) return 'automatica';
+		return 'no_sabe';
+	}
+	if (field === 'personas') {
+		if (/1|2|uno|dos/i.test(lower)) return '1-2';
+		if (/3|4|tres|cuatro/i.test(lower)) return '3-4';
+		if (/5|mas|más|cinco|muchos|familia/i.test(lower)) return '5+';
+		return '3-4';
+	}
+	if (field === 'espacio') {
+		if (/sala|comedor|principal/i.test(lower)) return 'sala';
+		if (/habitaci[oó]n|cuarto|alcoba|dormitorio/i.test(lower)) return 'habitacion';
+		if (/cocina|negocio|oficina|local/i.test(lower)) return 'negocio';
+		return 'sala';
+	}
+	if (field === 'tamano') {
+		if (/pequeñ[oa]|32|40|43|chico/i.test(lower)) return '32-43';
+		if (/mediano|mediana|50|55/i.test(lower)) return '50-55';
+		if (/grande|65|75|70|enorme|gigante/i.test(lower)) return '65+';
+		return 'no_sabe';
+	}
+	if (field === 'smart') {
+		if (/s[íi]|smart|aplicaciones|indispensable/i.test(lower)) return 'si';
+		return 'no_importa';
+	}
+	if (field === 'inverter') {
+		if (/inverter|ahorr/i.test(lower)) return 'inverter';
+		if (/convencional|normal|barat/i.test(lower)) return 'convencional';
+		return 'no_sabe';
+	}
+	if (field === 'presupuesto') {
+		if (/menos|bajo|barato|econ[oó]mico/i.test(lower)) return 'bajo';
+		if (/medio|moderado|normal|800|900/i.test(lower)) return 'medio';
+		if (/alto|mucho|sin l[ií]mite|lo que sea|no importa|indistinto/i.test(lower)) return 'alto';
+		const num = lower.match(/([\d.]+)/);
+		if (num) return num[1];
+		return 'medio';
+	}
+	return msg;
+}
+
+function detectarCategoria(msg: string): 'lavadora' | 'televisor' | 'nevera' | 'aire' | 'otra' | null {
+	const lower = msg.toLowerCase();
+	if (/lavadora|lavadoras|secadora|lavar/i.test(lower)) return 'lavadora';
+	if (/televisor|televisores|tv|pantalla|smart/i.test(lower)) return 'televisor';
+	if (/nevera|neveras|nevecon|nevecones|congelador|congeladores|minibar|vitrina|refrigerador/i.test(lower)) return 'nevera';
+	if (/aire|acondicionado|climatizacion|climatizaci[oó]n/i.test(lower)) return 'aire';
+	if (CATEGORIAS_RE.test(msg)) return 'otra';
+	return null;
+}
+
+function detectarShortcuts(message: string, categoria: string): Record<string, string> {
+	const lower = message.toLowerCase();
+	const answers: Record<string, string> = {};
+
+	if (categoria === 'lavadora') {
+		if (/autom[aá]tic[oa]/i.test(lower)) answers.tipo = 'automatica';
+		if (/semi/i.test(lower)) answers.tipo = 'semiautomatica';
+		const kgMatch = lower.match(/(\d+)\s*(?:kg|kilos|k|lb|libras)/i);
+		if (kgMatch) {
+			const kg = parseInt(kgMatch[1]);
+			if (kg <= 9) answers.personas = '1-2';
+			else if (kg <= 13) answers.personas = '3-4';
+			else answers.personas = '5+';
+		}
+	} else if (categoria === 'televisor') {
+		if (/sala/i.test(lower)) answers.espacio = 'sala';
+		if (/habitaci[oó]n|cuarto|alcoba/i.test(lower)) answers.espacio = 'habitacion';
+		if (/cocina|negocio|oficina/i.test(lower)) answers.espacio = 'negocio';
+		const inchMatch = lower.match(/(\d+)\s*(?:pulgadas|pulg|\")/i);
+		if (inchMatch) {
+			const inch = parseInt(inchMatch[1]);
+			if (inch <= 43) answers.tamano = '32-43';
+			else if (inch <= 55) answers.tamano = '50-55';
+			else answers.tamano = '65+';
+		}
+		if (/grande/i.test(lower)) answers.tamano = '65+';
+		if (/pequeñ[oa]/i.test(lower)) answers.tamano = '32-43';
+		if (/mediano/i.test(lower)) answers.tamano = '50-55';
+	} else if (categoria === 'nevera') {
+		if (/grande|nevecon|nevecones/i.test(lower)) answers.espacio = 'amplio';
+		if (/pequeñ[oa]|mini|compacto/i.test(lower)) answers.espacio = 'reducido';
+		if (/barato|econ[oó]mico/i.test(lower)) answers.presupuesto = 'bajo';
+	} else if (categoria === 'aire') {
+		if (/habitaci[oó]n|cuarto|alcoba/i.test(lower)) answers.espacio = 'habitacion';
+		if (/sala|comedor/i.test(lower)) answers.espacio = 'sala';
+		if (/oficina|local/i.test(lower)) answers.espacio = 'oficina';
+		if (/pequeñ[oa]/i.test(lower)) answers.tamano = 'reducido';
+		if (/grande|amplio/i.test(lower)) answers.tamano = 'grande';
+	}
+	return answers;
+}
+
+function obtenerTerminoBusquedaDesdePerfil(categoria: string, answers: Record<string, string>): string {
+	if (categoria === 'lavadora') {
+		const tipo = answers.tipo || 'automatica';
+		const personas = answers.personas || '3-4';
+		if (tipo === 'semiautomatica') {
+			if (personas === '1-2') return 'semiautomatica 7kg';
+			return 'semiautomatica 11kg';
+		}
+		if (personas === '1-2') return 'automatica 14kg';
+		if (personas === '3-4') return 'automatica 16kg';
+		return 'automatica 17kg';
+	}
+	if (categoria === 'televisor') {
+		const tamano = answers.tamano || '50-55';
+		if (tamano === '32-43') return 'televisor 40';
+		if (tamano === '50-55') return 'televisor 50';
+		if (tamano === '65+') return 'televisor 65';
+		return 'televisor';
+	}
+	if (categoria === 'nevera') {
+		const personas = answers.personas || '3-4';
+		const espacio = answers.espacio || 'amplio';
+		if (personas === '1-2') {
+			if (espacio === 'reducido') return 'minibar';
+			return 'nevera 197';
+		}
+		if (personas === '3-4') return 'nevera 251';
+		return 'nevecon';
+	}
+	if (categoria === 'aire') {
+		const tamano = answers.tamano || '15-25';
+		if (tamano === 'reducido') return '9000';
+		if (tamano === 'grande') return '18000';
+		return '12000';
+	}
+	return answers.uso || '';
+}
+
+function camposPerfilCompletados(answers: Record<string, string>): number {
+	return Object.keys(answers).filter(k => !!answers[k]).length;
+}
+
 export interface AgentResponse {
 	response: string;
 	nextStage?: string;
@@ -966,7 +1139,7 @@ export class VentasAgent implements IAgent {
 				tieneCobertura: false,
 			};
 			return {
-				response: `${getSaludo()} ¡Qué bien! En ${ciudadDetectada} no tenemos cobertura directa, el envío sería por Coordinadora (el flete se cobra al hacer el pedido).\n\nCuéntame, ¿qué producto o referencia buscas? 😊`,
+				response: `${getSaludo()} En ${ciudadDetectada} no tenemos cobertura directa, el envío sería por Coordinadora (el flete se cobra al hacer el pedido).\n\nCuéntame, ¿qué producto o referencia buscas? 😊`,
 				metadata: {
 					agentType: 'ventas',
 					ciudad: ciudadDetectada,
@@ -1188,66 +1361,85 @@ export class VentasAgent implements IAgent {
 			}
 		}
 
-		// ── PASO 7: Perfilación de producto (categoría general sin especificar) ─
-		const CATEGORIAS = CATEGORIAS_RE;
-		const esCategoriaSola = CATEGORIAS.test(message) && message.split(/\s+/).length <= 4;
-		const esBusquedaCategoria = CATEGORIAS.test(message) && /(?:busco|quiero|necesito|me interesa|tiene[ns]?|hay|venden|muestra|quisiera|info de|informacion de|precio de|precios de|cuesta|cuestan|vale|valen|consulta)/i.test(message);
-		const categoriaGeneral = esCategoriaSola || esBusquedaCategoria;
-		const yaTieneTamano = /(\d+\s*(?:pulgadas|pulg|lt|litros|kg|kilos))|(?:grande|pequeñ[oa]|mediano|mediana)/i.test(message);
-		const yaTienePresupuesto = context?.userData?.presupuesto || context?.presupuesto;
+		// ── PASO 7: Motor de perfilamiento por categoría ────────────────────
+		// Regla de Oro: Si el cliente nombra una categoría sin detalle exacto,
+		// la siguiente respuesta SIEMPRE es una pregunta, NUNCA un producto.
 
-		if (context?.flujo === 'perfilando_producto') {
-			// Pregunta 1 ya fue hecha → procesar respuesta de tamaño
-			const tamanoNumerico = message.match(/(\d+)\s*(?:pulgadas|pulg|lt|litros|kg|kilos)/i);
-			const tamanoCualitativo = /(?:grande|pequeñ[oa]|mediano|mediana|normal|est[aá]ndar|chico|chica|enano|compacto|mini|pro|profesional|port[aá]til|de\s*mesa|de\s*piso|de\s*pie|horizontal|vertical|inoxidable|acero)/i.test(message);
-			if (tamanoNumerico || tamanoCualitativo) {
-				context = { ...context, tamanoPerfil: tamanoNumerico?.[0] || message.trim(), flujo: 'perfilando_presupuesto' };
+		const perfilState = context?.perfilState as { categoria: string; step: number; answers: Record<string, string> } | undefined;
+
+		// 7a) Estamos en medio de una sesión de perfilamiento → procesar respuesta
+		if (context?.flujo === 'perfilando' && perfilState) {
+			const pasos = PROFILING_STEPS[perfilState.categoria] || PROFILING_STEPS.otra;
+			const pasoActual = pasos[perfilState.step - 1];
+			if (pasoActual) {
+				perfilState.answers[pasoActual.field] = resolverRespuestaPerfil(message, pasoActual.field);
+				perfilState.step++;
+			}
+
+			const camposOk = camposPerfilCompletados(perfilState.answers);
+
+			// Ya tenemos al menos 2 preguntas respondidas → recomendar productos
+			if (camposOk >= 2 || perfilState.step > pasos.length) {
+				const terminoBusqueda = obtenerTerminoBusquedaDesdePerfil(perfilState.categoria, perfilState.answers);
+				// Continuar al flujo de ventas normal con término de búsqueda derivado del perfil
+				// (colocamos terminoBusqueda en el contexto para que el flujo normal lo use)
+				context = { ...context, flujo: null, terminoBusqueda };
+				if (perfilState.answers.presupuesto) {
+					datosPersonales.presupuesto = perfilState.answers.presupuesto;
+				}
+			} else {
+				// Siguiente pregunta
+				const siguientePaso = pasos[perfilState.step - 1];
 				return {
-					response: '¿Tienes un presupuesto aproximado en mente? Así te recomiendo lo que mejor se ajuste.',
+					response: siguientePaso.pregunta,
 					metadata: {
 						agentType: 'ventas',
-						flujo: 'perfilando_presupuesto',
+						flujo: 'perfilando',
+						perfilState,
 						ciudad: context?.ciudad,
 						ciudadValidada: true,
 						...datosPersonales,
 					},
 				};
 			}
-			return {
-				response: '¿Qué tamaño buscas? Por ejemplo: 43, 55 o 65 pulgadas (o litros/kilos según el producto).',
-				metadata: {
-					agentType: 'ventas',
-					flujo: 'perfilando_producto',
-					ciudad: context?.ciudad,
-					ciudadValidada: true,
-					...datosPersonales,
-				},
-			};
 		}
 
-		if (context?.flujo === 'perfilando_presupuesto') {
-			const presupuestoMatch = message.match(/(\d[\d.,]*)/);
-			if (presupuestoMatch) {
-				context = { ...context, presupuesto: presupuestoMatch[1], flujo: null };
-				datosPersonales.presupuesto = presupuestoMatch[1];
-			} else {
-				context = { ...context, flujo: null };
+		// 7b) Detectar si el mensaje actual menciona una categoría de producto
+		const CATEGORIAS = CATEGORIAS_RE;
+		const esCategoriaSola = CATEGORIAS.test(message) && message.split(/\s+/).length <= 4;
+		const esBusquedaCategoria = CATEGORIAS.test(message) && /(?:busco|quiero|necesito|me interesa|tiene[ns]?|hay|venden|muestra|quisiera|info de|informacion de|precio de|precios de|cuesta|cuestan|vale|valen|consulta)/i.test(message);
+		const categoriaGeneral = esCategoriaSola || esBusquedaCategoria;
+
+		if (categoriaGeneral && context?.flujo !== 'perfilando') {
+			const cat = detectarCategoria(message);
+			if (cat) {
+				// Detectar si el usuario ya dio información espontánea (shortcuts)
+				const shortcuts = detectarShortcuts(message, cat);
+				const campos = camposPerfilCompletados(shortcuts);
+
+				// Si ya completó 2+ campos espontáneamente, usar directamente
+				if (campos >= 2) {
+					const terminoBusqueda = obtenerTerminoBusquedaDesdePerfil(cat, shortcuts);
+					context = { ...context, terminoBusqueda };
+				} else {
+					// Iniciar perfilamiento: encontrar el primer campo sin responder
+					const pasos = PROFILING_STEPS[cat] || PROFILING_STEPS.otra;
+					const primerPaso = pasos.find(p => !shortcuts[p.field]);
+					if (primerPaso) {
+						return {
+							response: primerPaso.pregunta,
+							metadata: {
+								agentType: 'ventas',
+								flujo: 'perfilando',
+								perfilState: { categoria: cat, step: pasos.indexOf(primerPaso) + 1, answers: shortcuts },
+								ciudad: context?.ciudad,
+								ciudadValidada: true,
+								...datosPersonales,
+							},
+						};
+					}
+				}
 			}
-			// Continúa al flujo normal para mostrar productos
-		}
-
-		// Si es categoría general sin tamaño ni presupuesto, entrar a perfilación
-		if (categoriaGeneral && !yaTieneTamano && !yaTienePresupuesto && context?.flujo !== 'perfilando_presupuesto') {
-			return {
-				response: '¿Qué tamaño buscas? Por ejemplo: 43, 55 o 65 pulgadas (o litros/kilos según el producto).',
-				metadata: {
-					agentType: 'ventas',
-					flujo: 'perfilando_producto',
-					ciudad: context?.ciudad,
-					ciudadValidada: true,
-					...datosPersonales,
-				},
-			};
 		}
 
 		// Los datos personales se pasan en metadata para que message.handler los guarde
@@ -1264,7 +1456,7 @@ export class VentasAgent implements IAgent {
 		let products: any[] = [];
 		let hayProductos = false;
 		let productoIndex = 0;
-		let terminoBusqueda = message;
+		let terminoBusqueda = context?.terminoBusqueda || message;
 
 		// Extraer término de producto para guardar como productoSolicitado
 		const busquedaMatch = message.match(/(?:busco|quiero|necesito|tiene[ns]?|hay|venden|muestra|muestrame|quisiera|me interesa|info de|informacion de)\s*(?:un[oa]?|unas?|disponible)?\s*([a-záéíóúñÁÉÍÓÚÑ][a-záéíóúñÁÉÍÓÚÑ\s]{2,40})/i);
@@ -1320,7 +1512,7 @@ export class VentasAgent implements IAgent {
 		if (products.length === 0) {
 			// Verificar si el usuario preguntó por un producto que no está en nuestro catálogo
 			const palabrasMensaje = terminoBusqueda.toLowerCase().replace(/[.,!?¡¿]+/g, '').split(/\s+/);
-			const mencionaAlgunaCategoria = palabrasMensaje.some(p => CATEGORIAS_RE.test(p));
+			const mencionaAlgunaCategoria = palabrasMensaje.some((p: string) => CATEGORIAS_RE.test(p));
 			const esConsultaProducto = /(?:tiene[ns]?|hay|venden|busco|quiero|necesito|me interesa|consulta|precio|cu[aá]nto)/i.test(message);
 
 			try {
@@ -1335,8 +1527,8 @@ export class VentasAgent implements IAgent {
 						.toLowerCase()
 						.replace(/[.,!?¡¿]+/g, '')
 						.split(/\s+/)
-						.filter((w) => w.length > 3)
-						.filter((w) => !['para', 'con', 'mas', 'más', 'que', 'una', 'uno', 'las', 'los', 'del', 'por', 'pero', 'esta', 'todo', 'como', 'entre', 'sobre', 'cuando', 'donde', 'tiene', 'ser', 'desde', 'hasta', 'cada'].includes(w));
+						.filter((w: string) => w.length > 3)
+						.filter((w: string) => !['para', 'con', 'mas', 'más', 'que', 'una', 'uno', 'las', 'los', 'del', 'por', 'pero', 'esta', 'todo', 'como', 'entre', 'sobre', 'cuando', 'donde', 'tiene', 'ser', 'desde', 'hasta', 'cada'].includes(w));
 
 					for (const keyword of palabrasClave) {
 						const results = await wooCommerceService.searchProducts(keyword, 6);
