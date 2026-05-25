@@ -1,5 +1,6 @@
 import { generateResponse } from '../utils/gemini.js';
 import { wooCommerceService } from '../woocommerce/woocommerce.service.js';
+import { searchByVector, isIndexReady } from '../services/vector-store.js';
 import { sendMessage as sendWA } from '../whatsapp/whatsapp.js';
 import categoriasData from './categorias-generales.json';
 
@@ -1323,8 +1324,20 @@ export class VentasAgent implements IAgent {
 			const esConsultaProducto = /(?:tiene[ns]?|hay|venden|busco|quiero|necesito|me interesa|consulta|precio|cu[aá]nto)/i.test(message);
 
 			try {
-				products = await wooCommerceService.searchProducts(terminoBusqueda, 6);
+				// 1) Búsqueda vectorial (si el índice está listo)
+				if (isIndexReady()) {
+					const vectorResults = await searchByVector(terminoBusqueda, 6);
+					if (vectorResults.length > 0) {
+						products = vectorResults.map(r => r.product);
+					}
+				}
 
+				// 2) Fallback a WooCommerce search si el vectorial no dio resultados
+				if (!products || products.length === 0) {
+					products = await wooCommerceService.searchProducts(terminoBusqueda, 6);
+				}
+
+				// 3) Fallback a búsqueda por palabras clave
 				if (!products || products.length === 0) {
 					const palabrasClave = terminoBusqueda
 						.toLowerCase()
@@ -1343,7 +1356,7 @@ export class VentasAgent implements IAgent {
 				}
 
 				// Si el usuario preguntó específicamente por un producto que no está en categorías
-				// y WooCommerce no encontró nada, no hacemos fallback a productos generales
+				// y no se encontró nada, no hacemos fallback a productos generales
 				if ((!products || products.length === 0) && esConsultaProducto && !mencionaAlgunaCategoria) {
 					const nombreProducto = busquedaMatch?.[1]?.trim().toLowerCase() || 'ese producto';
 					return {
