@@ -232,7 +232,7 @@ Categoría:`;
 		const flujoActivo = context?.flujo;
 		if (flujoActivo) {
 			// Mapear flujo activo al agente correspondiente
-			if (/^credito/.test(flujoActivo) || flujoActivo === 'sin_cobertura' || flujoActivo === 'contado_sin_cobertura' || flujoActivo === 'esperando_ciudad' || flujoActivo === 'credito_perfilando' || flujoActivo === 'esperando_modalidad' || flujoActivo === 'perfilando_producto' || flujoActivo === 'perfilando_presupuesto' || flujoActivo === 'perfilando') {
+			if (/^credito/.test(flujoActivo) || flujoActivo === 'sin_cobertura' || flujoActivo === 'contado_sin_cobertura' || flujoActivo === 'esperando_ciudad' || flujoActivo === 'credito_perfilando' || flujoActivo === 'esperando_modalidad' || flujoActivo === 'perfilando_producto' || flujoActivo === 'perfilando_presupuesto' || flujoActivo === 'perfilando' || flujoActivo === 'seleccion_pago' || flujoActivo === 'pago_web' || flujoActivo === 'pago_web_paso' || flujoActivo === 'pago_medios' || flujoActivo === 'pago_fisico') {
 				intent = 'ventas';
 			} else if (/^repuesto/.test(flujoActivo)) {
 				intent = 'repuestos';

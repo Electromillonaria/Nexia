@@ -71,70 +71,87 @@ interface ProfilingStep {
 const PROFILING_STEPS: Record<string, ProfilingStep[]> = {
 	lavadora: [
 		{ field: 'tipo', pregunta: '¿La prefieres automática o semiautomática? 🧺\n\n🔵 Automática\n🟢 Semiautomática\n🤷 No estoy seguro' },
-		{ field: 'personas', pregunta: '¿Para cuántas personas sería el uso en tu hogar? 👥\n\n- 1 a 2 personas\n- 3 a 4 personas\n- 5 o más personas' },
-		{ field: 'presupuesto', pregunta: '¿Qué presupuesto aproximado tienes en mente? 💰\n\n- Menos de $800.000\n- Entre $800.000 y $1.200.000\n- Lo que sea necesario' },
+		{ field: 'personas', pregunta: '¿Para cuántas personas es tu hogar? 👥\n\n1️⃣ 1 a 2\n2️⃣ 3 a 4\n3️⃣ 5 o más' },
+		{ field: 'presupuesto', pregunta: '¿Presupuesto aproximado? 💰\n\n1️⃣ Menos de $800.000\n2️⃣ $800.000 – $1.200.000\n3️⃣ Lo que sea necesario' },
 	],
 	televisor: [
-		{ field: 'espacio', pregunta: '¿Para qué espacio de tu hogar buscas el televisor? 📺\n\n- Sala\n- Habitación\n- Cocina o negocio' },
-		{ field: 'tamano', pregunta: '¿Qué tamaño de pantalla te gustaría? 📏\n\n- Pequeño (32" a 43")\n- Mediano (50" a 55")\n- Grande (65" o más)\n- No estoy seguro' },
-		{ field: 'smart', pregunta: '¿Es indispensable que sea Smart TV con acceso a aplicaciones? 🌐\n\n- Sí, indispensable\n- No importa / No es necesario' },
+		{ field: 'espacio', pregunta: '¿Para qué espacio es? 📺\n\n1️⃣ Sala\n2️⃣ Habitación\n3️⃣ Cocina o negocio' },
+		{ field: 'tamano', pregunta: '¿Qué tamaño buscas? 📏\n\n1️⃣ 32" a 43"\n2️⃣ 50" a 55"\n3️⃣ 65" o más\n4️⃣ No estoy seguro' },
+		{ field: 'smart', pregunta: '¿Necesitas Smart TV con apps? 🌐\n\n1️⃣ Sí\n2️⃣ No importa' },
 	],
 	nevera: [
-		{ field: 'personas', pregunta: '¿Para cuántas personas sería la nevera? ❄️\n\n- 1 a 2 personas\n- 3 a 4 personas\n- 5 o más personas' },
-		{ field: 'espacio', pregunta: '¿Dispones de un espacio amplio o reducido en tu cocina? 📐\n\n- Amplio\n- Reducido' },
-		{ field: 'presupuesto', pregunta: '¿Qué presupuesto aproximado tienes en mente? 💰\n\n- Menos de $900.000\n- Entre $900.000 y $1.500.000\n- Sin límite' },
+		{ field: 'personas', pregunta: '¿Para cuántas personas? ❄️\n\n1️⃣ 1 a 2\n2️⃣ 3 a 4\n3️⃣ 5 o más' },
+		{ field: 'espacio', pregunta: '¿Tienes espacio amplio o reducido en la cocina? 📐\n\n1️⃣ Amplio\n2️⃣ Reducido' },
+		{ field: 'presupuesto', pregunta: '¿Presupuesto aproximado? 💰\n\n1️⃣ Menos de $900.000\n2️⃣ $900.000 – $1.500.000\n3️⃣ Sin límite' },
 	],
 	aire: [
-		{ field: 'espacio', pregunta: '¿Para qué tipo de espacio buscas el aire acondicionado? ❄️\n\n- Habitación\n- Sala o comedor\n- Oficina o local comercial' },
-		{ field: 'tamano', pregunta: '¿Qué tamaño aproximado tiene el espacio? 📏\n\n- Menos de 15 m²\n- Entre 15 y 25 m²\n- Más de 25 m²' },
-		{ field: 'inverter', pregunta: '¿Lo prefieres Inverter (ahorra hasta 60% de energía) o convencional (más económico de entrada)? 🟢\n\n- Inverter (Recomendado)\n- Convencional\n- No estoy seguro' },
+		{ field: 'espacio', pregunta: '¿Para qué espacio? ❄️\n\n1️⃣ Habitación\n2️⃣ Sala o comedor\n3️⃣ Oficina o local' },
+		{ field: 'tamano', pregunta: '¿Tamaño del espacio? 📏\n\n1️⃣ Menos de 15 m²\n2️⃣ 15 a 25 m²\n3️⃣ Más de 25 m²' },
+		{ field: 'inverter', pregunta: '¿Inverter o convencional? 🟢\n\n1️⃣ Inverter (ahorra hasta 60% energía)\n2️⃣ Convencional (más económico)\n3️⃣ No estoy seguro' },
 	],
 	otra: [
 		{ field: 'uso', pregunta: '¿Para qué lo vas a usar principalmente? 😊' },
-		{ field: 'presupuesto', pregunta: '¿Tienes algún presupuesto en mente aproximadamente? 💰' },
+		{ field: 'presupuesto', pregunta: '¿Presupuesto aproximado? 💰' },
 	],
 };
 
 function resolverRespuestaPerfil(msg: string, field: string): string {
 	const lower = msg.toLowerCase().trim();
+	const num = lower.replace(/[^0-9]/g, '');
+
 	if (field === 'tipo') {
-		if (/semi/i.test(lower)) return 'semiautomatica';
-		if (/auto/i.test(lower)) return 'automatica';
+		if (num === '1' || /auto/i.test(lower)) return 'automatica';
+		if (num === '2' || /semi/i.test(lower)) return 'semiautomatica';
+		if (num === '3' || /no s[eé]/i.test(lower) || /seguro/i.test(lower)) return 'no_sabe';
 		return 'no_sabe';
 	}
 	if (field === 'personas') {
-		if (/1|2|uno|dos/i.test(lower)) return '1-2';
-		if (/3|4|tres|cuatro/i.test(lower)) return '3-4';
-		if (/5|mas|más|cinco|muchos|familia/i.test(lower)) return '5+';
+		if (num === '1' || /1|2|uno|dos/i.test(lower)) return '1-2';
+		if (num === '2' || /3|4|tres|cuatro/i.test(lower)) return '3-4';
+		if (num === '3' || /5|mas|más|cinco|muchos|familia|grande/i.test(lower)) return '5+';
+		// Intentar extraer número directo
+		const numPersonas = parseInt(lower.match(/\d+/)?.[0] || '');
+		if (numPersonas <= 2) return '1-2';
+		if (numPersonas <= 4) return '3-4';
+		if (numPersonas >= 5) return '5+';
 		return '3-4';
 	}
 	if (field === 'espacio') {
-		if (/sala|comedor|principal/i.test(lower)) return 'sala';
-		if (/habitaci[oó]n|cuarto|alcoba|dormitorio/i.test(lower)) return 'habitacion';
-		if (/cocina|negocio|oficina|local/i.test(lower)) return 'negocio';
+		if (num === '1' || /sala|comedor|principal/i.test(lower)) return 'sala';
+		if (num === '2' || /habitaci[oó]n|cuarto|alcoba|dormitorio/i.test(lower)) return 'habitacion';
+		if (num === '3' || /cocina|negocio|oficina|local/i.test(lower)) return 'negocio';
+		if (/amplio|grande|espacioso/i.test(lower)) return 'amplio';
+		if (/reducido|pequeñ[oa]|chico|angosto/i.test(lower)) return 'reducido';
 		return 'sala';
 	}
 	if (field === 'tamano') {
-		if (/pequeñ[oa]|32|40|43|chico/i.test(lower)) return '32-43';
-		if (/mediano|mediana|50|55/i.test(lower)) return '50-55';
-		if (/grande|65|75|70|enorme|gigante/i.test(lower)) return '65+';
+		if (num === '1' || /pequeñ[oa]|32|40|43|chico/i.test(lower)) return '32-43';
+		if (num === '2' || /mediano|mediana|50|55/i.test(lower)) return '50-55';
+		if (num === '3' || /grande|65|75|70|enorme|gigante/i.test(lower)) return '65+';
+		if (num === '4' || /no s[eé]/i.test(lower) || /seguro/i.test(lower)) return 'no_sabe';
+		// Detectar m² para aire acondicionado
+		if (/menos de 15|peque/i.test(lower)) return 'reducido';
+		if (/m[aá]s de 25|grande|amplio/i.test(lower)) return 'grande';
+		if (/15|20|25/i.test(lower)) return '15-25';
 		return 'no_sabe';
 	}
 	if (field === 'smart') {
-		if (/s[íi]|smart|aplicaciones|indispensable/i.test(lower)) return 'si';
+		if (num === '1' || /s[íi]|smart|aplicaciones|indispensable/i.test(lower)) return 'si';
+		if (num === '2' || /no|igual|da lo mismo/i.test(lower)) return 'no_importa';
 		return 'no_importa';
 	}
 	if (field === 'inverter') {
-		if (/inverter|ahorr/i.test(lower)) return 'inverter';
-		if (/convencional|normal|barat/i.test(lower)) return 'convencional';
+		if (num === '1' || /inverter|ahorr/i.test(lower)) return 'inverter';
+		if (num === '2' || /convencional|normal|barat/i.test(lower)) return 'convencional';
+		if (num === '3' || /no s[eé]/i.test(lower) || /seguro/i.test(lower)) return 'no_sabe';
 		return 'no_sabe';
 	}
 	if (field === 'presupuesto') {
-		if (/menos|bajo|barato|econ[oó]mico/i.test(lower)) return 'bajo';
-		if (/medio|moderado|normal|800|900/i.test(lower)) return 'medio';
-		if (/alto|mucho|sin l[ií]mite|lo que sea|no importa|indistinto/i.test(lower)) return 'alto';
-		const num = lower.match(/([\d.]+)/);
-		if (num) return num[1];
+		if (num === '1' || /menos|bajo|barato|econ[oó]mico/i.test(lower)) return 'bajo';
+		if (num === '2' || /medio|moderado|normal|800|900|entre/i.test(lower)) return 'medio';
+		if (num === '3' || /alto|mucho|sin l[ií]mite|lo que sea|no importa|indistinto|necesario/i.test(lower)) return 'alto';
+		const numVal = lower.match(/([\d.]+)/);
+		if (numVal) return numVal[1];
 		return 'medio';
 	}
 	return msg;
@@ -275,6 +292,25 @@ function cleanResponse(raw: string): string {
 	if (!raw) return '';
 	let text = raw.trim();
 
+	// 0) CRÍTICO: Detectar fuga masiva de razonamiento (caso Gemma real).
+	//    Si el texto contiene patrones de auto-evaluación interna junto con
+	//    contenido duplicado, extraer solo la primera respuesta limpia.
+	const fugaMasiva = /(?:Warm\/Clear\/Direct|Colombian Spanish|Payment\/Shipping|asterisks\/formatting|I must prioritize|the system prompt|the asstant|Revised Draft|Final Polish|Double check)/i;
+	if (fugaMasiva.test(text)) {
+		// Buscar la primera oración coherente en español antes de la fuga
+		const oraciones = text.split(/(?<=[.!?])\s+/);
+		const limpias: string[] = [];
+		for (const o of oraciones) {
+			if (fugaMasiva.test(o)) break;
+			if (/^[A-ZÁÉÍÓÚÑ¡¿]/.test(o.trim()) && o.trim().length > 10) {
+				limpias.push(o.trim());
+			}
+		}
+		if (limpias.length > 0) {
+			text = limpias.join(' ');
+		}
+	}
+
 	// 1) Quitar bloques de pensamiento explícitos
 	text = text.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
 	text = text.replace(/```[\s\S]*?```/g, '').trim();
@@ -409,6 +445,42 @@ function cleanResponse(raw: string): string {
 
 	// 10) Compactar espacios
 	text = text.replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+
+	// 11) VALIDACIÓN FINAL DE SEGURIDAD — Si después de toda la limpieza
+	//     aún quedan patrones de razonamiento interno, es mejor devolver
+	//     un mensaje genérico que exponer el pensamiento de la IA al cliente.
+	const patronesPeligrosos = [
+		/\bWait,?\s/i,
+		/\bLet me\b/i,
+		/\bDouble check/i,
+		/\bFinal Polish/i,
+		/\bRevised Draft/i,
+		/\bthe system prompt/i,
+		/\bthe asstant/i,
+		/\bI must\b/i,
+		/\bI should\b/i,
+		/\bI think\b/i,
+		/\bI need to\b/i,
+		/\bApplying that here/i,
+		/\bBut the rule says/i,
+		/\?\s*(?:Yes|No)\.\s/i,           // "Colombian Spanish? Yes."
+		/Warm\/Clear\/Direct/i,
+		/asterisks\/formatting/i,
+		/Payment\/Shipping/i,
+		/Colombian Spanish\?/i,
+	];
+
+	const tienePatronPeligroso = patronesPeligrosos.some(p => p.test(text));
+	if (tienePatronPeligroso) {
+		// Intentar rescatar solo la primera oración limpia en español
+		const primeraOracion = text.match(/^([¡¿]?[A-ZÁÉÍÓÚÑ][^.!?]*[.!?])/);
+		if (primeraOracion && primeraOracion[1].length > 15 && !patronesPeligrosos.some(p => p.test(primeraOracion[1]))) {
+			text = primeraOracion[1];
+		} else {
+			// No se pudo rescatar nada limpio → mensaje genérico seguro
+			text = '¡Hola! Disculpa la demora. ¿Podrías repetirme tu consulta para ayudarte mejor? 😊';
+		}
+	}
 
 	return text;
 }
@@ -548,7 +620,16 @@ function buildGemmaPrompt(opts: {
 	historial: string;
 	mensajeCliente: string;
 }): { system: string; user: string } {
-	const system = `${opts.instruccion} Responde en español natural, en una o dos frases breves, sin asteriscos, sin encabezados, sin etiquetas, sin explicar tu razonamiento. IMPORTANTE: Responde SOLO el mensaje al cliente leyendo su contexto.`;
+	const system = `${opts.instruccion}
+
+FORMATO DE RESPUESTA OBLIGATORIO:
+- Responde ÚNICAMENTE el mensaje para el cliente.
+- Español colombiano natural, 1-3 frases cortas.
+- Sin asteriscos, sin encabezados, sin etiquetas, sin listas con viñetas.
+- PROHIBIDO incluir tu razonamiento, borradores, auto-evaluación o checklist.
+- PROHIBIDO escribir en inglés.
+- Si no estás seguro de algo, di "déjame verificar" en vez de inventar.
+- Tu respuesta empieza directamente con el mensaje al cliente.`;
 
 	const ejemplosTexto = opts.ejemplos
 		.map((e) => `Cliente: ${e.cliente}\nAsistente: ${e.asistente}`)
@@ -605,10 +686,26 @@ async function verificarCobertura(lugar: string): Promise<'cobertura' | 'sin_cob
 	if (!lugar) return 'desconocido';
 	const l = lugar.toLowerCase().trim();
 
+	// Búsqueda rápida en listas locales
 	if (DEPARTAMENTOS_COBERTURA.some((d) => l.includes(d))) return 'cobertura';
 	if (CIUDADES_COBERTURA.some((c) => l.includes(c))) return 'cobertura';
 
-	return 'desconocido';
+	// Ciudades grandes colombianas conocidas fuera de cobertura → sin_cobertura directamente
+	const fueraCobertura = [
+		'bogota', 'bogotá', 'medellin', 'medellín', 'barranquilla', 'cartagena',
+		'cucuta', 'cúcuta', 'bucaramanga', 'pereira', 'manizales', 'ibague', 'ibagué',
+		'santa marta', 'villavicencio', 'monteria', 'montería', 'sincelejo',
+		'valledupar', 'tunja', 'armenia', 'quibdo', 'quibdó', 'riohacha',
+		'leticia', 'arauca', 'yopal', 'florencia', 'san andrés', 'san andres',
+	];
+	if (fueraCobertura.some(c => l.includes(c))) return 'sin_cobertura';
+
+	// Fallback: usar IA para lugares no reconocidos
+	try {
+		return await verificarCoberturaConIA(lugar);
+	} catch {
+		return 'desconocido';
+	}
 }
 
 // ─── Descripción del área de cobertura JLC para Gemini ──────────────────────
@@ -1014,7 +1111,30 @@ export class VentasAgent implements IAgent {
 
 		// ── SI ESTAMOS ESPERANDO CIUDAD, procesar primero (PASO 2) ─────────
 		if (context?.flujo === 'esperando_ciudad') {
-			const ciudadDetectada = (await extraerCiudadDelMensaje(message)) || message.trim();
+			// Intentar detectar ciudad con IA si la extracción directa falla
+			let ciudadDetectada = await extraerCiudadDelMensaje(message);
+			if (!ciudadDetectada) {
+				ciudadDetectada = await detectarCiudadConIA(message);
+			}
+			if (!ciudadDetectada) {
+				// Último recurso: usar el texto tal como lo escribió
+				const limpio = message.trim().replace(/[.,!?¡¿]+$/g, '');
+				if (limpio.length >= 3 && limpio.length <= 30) {
+					ciudadDetectada = limpio.toLowerCase();
+				}
+			}
+
+			if (!ciudadDetectada) {
+				return {
+					response: `No logré identificar tu ciudad. ¿Puedes escribirla de nuevo? 📍`,
+					metadata: {
+						agentType: 'ventas',
+						flujo: 'esperando_ciudad',
+						pendingMessage: context?.pendingMessage,
+					},
+				};
+			}
+
 			const cobertura = await verificarCobertura(ciudadDetectada);
 			const ciudadCap = ciudadDetectada.charAt(0).toUpperCase() + ciudadDetectada.slice(1);
 
@@ -1578,20 +1698,18 @@ export class VentasAgent implements IAgent {
 
 		const { system, user } = buildGemmaPrompt({
 			instruccion: `Eres ${AGENT_NAME}, asesora comercial de JLC Electronics Colombia.
-Tu tono es cálido, claro y directo. Hablas en español colombiano.
-${ciudadStr} ${envioStr}.
+Tono cálido, claro y directo. Español colombiano. Mensajes cortos tipo WhatsApp.
+${ciudadStr ? `Ciudad del cliente: ${ciudadStr}.` : ''} ${envioStr ? `Condición de envío: ${envioStr}.` : ''}
 ${userDataStr}
 REGLAS:
-- El cliente busca un producto. Usa el CATÁLOGO para recomendar lo más relevante.
-- Menciona máximo 1-2 productos con su nombre y enlace.
-- Si hay productos, preséntalos de forma natural.
-- Si NO hay productos, pide amablemente más detalles (marca, modelo, referencia).
-- No inventes productos ni precios.
-- No compartas datos de agencias físicas.
-- Responde en máximo 3 líneas, sin asteriscos ni formato.
-- CAPTURA Y REGISTRA automáticamente cualquier dato personal que el cliente mencione: nombre, cédula, dirección, teléfono, presupuesto. No los pidas de nuevo si ya fueron mencionados.
-- Siempre revisa los DATOS DEL CLIENTE antes de responder. Si ya sabes su ciudad, producto o presupuesto, úsalos para personalizar tu respuesta.
-- Si el cliente cambia de tema (ej: pregunta por cartera, garantías), redirecto suavemente al flujo de compra activo: "Entiendo, pero antes déjame ayudarte a terminar tu compra. ¿Quieres continuar?" Solo transferir si el cliente insiste.`,
+- Recomienda máximo 1-2 productos del CATÁLOGO con nombre, precio y enlace.
+- Si hay productos, preséntalos de forma natural y breve.
+- Si NO hay productos, pide más detalles (marca, modelo, referencia).
+- NUNCA inventes productos, precios ni disponibilidad.
+- NUNCA compartas direcciones de agencias físicas.
+- NUNCA contradigas la condición de envío ya comunicada al cliente.
+- Máximo 3 líneas de texto, sin asteriscos ni formato.
+- Si el cliente ya dio datos (nombre, cédula, ciudad, presupuesto), úsalos sin pedirlos de nuevo.`,
 			ejemplos: [
 				{
 					cliente: 'Busco una nevera',
