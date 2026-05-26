@@ -1745,8 +1745,6 @@ export class VentasAgent implements IAgent {
 				};
 			}
 		}
-		const categoriaGeneral = esCategoriaSola || esBusquedaCategoria;
-
 		if (categoriaGeneral && context?.flujo !== 'perfilando') {
 			const cat = detectarCategoria(message);
 			if (cat) {
