@@ -1394,7 +1394,7 @@ export class VentasAgent implements IAgent {
 		}
 
 		// ── PASO 4: Detectar intención de compra ─────────────────────────────
-		const quiereComprar = /\b(?:comprar(?:lo|la)?|lo quiero|la quiero|quiero esa|quiero este|quiero comprar|c[oó]mo (?:compro|hago|puedo pagar|le hago|le hago para pagar|pago)|quiero pagar|proceder|concretar|compralo|c[oó]mpralo|reservar|apartar|d[áa]le|confirmo compra|ya lo quiero|me gusta esa|me gusta esta|me gusta ese|esa me gusta|esta me gusta|si continuemos|si sigamos|sigamos adelante|seguimos|continuemos)\b|\bcompr(?:o|ar)\s+(?:esa|este|ese)\b|\b(?:el de \d+|el primero|el segundo|me quedo con|me interesa el|prefiero el)\b/i.test(message);
+		const quiereComprar = /\b(?:comprar(?:lo|la)?|lo quiero|la quiero|quiero esa|quiero esta|quiero ese|quiero este|quiero comprar|c[oó]mo (?:compro|hago|puedo pagar|le hago|le hago para pagar|pago)|quiero pagar|proceder|concretar|compralo|c[oó]mpralo|reservar|apartar|d[áa]le|confirmo compra|ya lo quiero|me gusta esa|me gusta esta|me gusta ese|esa me gusta|esta me gusta|si continuemos|si sigamos|sigamos adelante|seguimos|continuemos)\b|\bcompr(?:o|ar)\s+(?:esa|esta|este|ese)\b|\b(?:el de \d+|el primero|el segundo|me quedo con|me interesa el|prefiero el)\b/i.test(message);
 
 		if (quiereComprar && context?.modalidad === 'contado') {
 			const tieneCobertura = context?.tieneCobertura;
@@ -1782,7 +1782,7 @@ export class VentasAgent implements IAgent {
 					// Iniciar perfilamiento: encontrar el primer campo sin responder
 					const primerPaso = pasos.find(p => !shortcuts[p.field]);
 					if (primerPaso) {
-						const prodMatch = message.match(/(?:busco|quiero|necesito|tiene[ns]?|hay|venden|muestra|muestrame|quisiera|me interesa|info de|informacion de)\s*(?:un[oa]?|unas?|disponible)?\s*([a-záéíóúñÁÉÍÓÚÑ][a-záéíóúñÁÉÍÓÚÑ\s]{2,40})/i);
+						const prodMatch = message.match(/(?:busco|quiero|necesito|tiene[ns]?|hay|venden|muestra|muestrame|quisiera|me interesa|info de|informacion de)\s*(?:un[oa]?|unas?|disponible|esta|este|esa|ese)?\s*([a-záéíóúñÁÉÍÓÚÑ][a-záéíóúñÁÉÍÓÚÑ\s]{2,40})/i);
 						return {
 							response: primerPaso.pregunta,
 							metadata: {
@@ -1821,7 +1821,7 @@ export class VentasAgent implements IAgent {
 		let terminoBusqueda = context?.terminoBusqueda || message;
 
 		// Extraer término de producto para guardar como productoSolicitado
-		const busquedaMatch = message.match(/(?:busco|quiero|necesito|tiene[ns]?|hay|venden|muestra|muestrame|quisiera|me interesa|info de|informacion de)\s*(?:un[oa]?|unas?|disponible)?\s*([a-záéíóúñÁÉÍÓÚÑ][a-záéíóúñÁÉÍÓÚÑ\s]{2,40})/i);
+		const busquedaMatch = message.match(/(?:busco|quiero|necesito|tiene[ns]?|hay|venden|muestra|muestrame|quisiera|me interesa|info de|informacion de)\s*(?:un[oa]?|unas?|disponible|esta|este|esa|ese)?\s*([a-záéíóúñÁÉÍÓÚÑ][a-záéíóúñÁÉÍÓÚÑ\s]{2,40})/i);
 		const productoBuscado = busquedaMatch ? busquedaMatch[1].trim() : terminoBusqueda;
 
 		// ── Seguimiento: preguntas sobre productos ya mostrados ────────────
