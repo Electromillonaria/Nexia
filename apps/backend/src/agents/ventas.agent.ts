@@ -351,9 +351,44 @@ export class VentasAgent implements IAgent {
 		if (context?.flujo === 'seleccion_pago_ambiguo') {
 			const opcion = message.trim();
 			const ultimosProductos = context?.ultimaBusqueda?.results ?? [];
+			
+			let selected: any = null;
+			
+			// 1. Intentar index directo (1, 2, 3...) si el texto es muy corto (para no confundir "55" con index 55)
 			const index = parseInt(opcion, 10) - 1;
-			if (!isNaN(index) && index >= 0 && index < ultimosProductos.length) {
-				const selected = ultimosProductos[index];
+			if (!isNaN(index) && index >= 0 && index < ultimosProductos.length && opcion.length <= 2) {
+				selected = ultimosProductos[index];
+			} else {
+				// 2. Intentar buscar por nombre o número inteligente
+				const lowerMsg = opcion.toLowerCase();
+				let match = ultimosProductos.find((p: any) =>
+					p.name.toLowerCase().includes(lowerMsg) ||
+					lowerMsg.includes(p.name.toLowerCase().slice(0, 20)) ||
+					(lowerMsg.includes('primero') && ultimosProductos[0] === p) ||
+					(lowerMsg.includes('segundo') && ultimosProductos[1] === p) ||
+					(lowerMsg.includes('tercero') && ultimosProductos[2] === p)
+				);
+
+				if (!match) {
+					const numbersInMsg = lowerMsg.match(/\b\d+\b/g);
+					if (numbersInMsg && numbersInMsg.length > 0) {
+						const candidates = ultimosProductos.filter((p: any) =>
+							numbersInMsg.some(num => p.name.toLowerCase().includes(num))
+						);
+						if (candidates.length === 1) {
+							match = candidates[0];
+						} else if (candidates.length > 1) {
+							match = candidates[0];
+						}
+					}
+				}
+				
+				if (match) {
+					selected = match;
+				}
+			}
+
+			if (selected) {
 				const precioStr = selected.price ? ` tiene un valor de *$${Number(selected.price).toLocaleString('es-CO')}*` : '';
 				const linkStr = selected.permalink ? `\nAquí tienes el enlace del producto:\n${selected.permalink}` : '';
 				const ciudadStr = context?.ciudad ? ` con envío gratis a ${context.ciudad.charAt(0).toUpperCase() + context.ciudad.slice(1)}` : '';
@@ -575,7 +610,7 @@ export class VentasAgent implements IAgent {
 		}
 
 		// ── PASO 4: Detectar intención de compra ─────────────────────────────
-		const quiereComprar = /\b(?:comprar(?:lo|la)?|lo quiero|la quiero|quiero esa|quiero esta|quiero ese|quiero este|quiero comprar|c[oó]mo (?:compro|hago|puedo pagar|le hago|le hago para pagar|pago)|quiero pagar|proceder|concretar|compralo|c[oó]mpralo|reservar|apartar|d[áa]le|confirmo compra|ya lo quiero|me gusta esa|me gusta esta|me gusta ese|esa me gusta|esta me gusta|si continuemos|si sigamos|sigamos adelante|seguimos|continuemos)\b|\bcompr(?:o|ar)\s+(?:esa|esta|este|ese|eso|esas|esos|estes)\b|\b(?:el de \d+|el primero|el segundo|me quedo con|me interesa el|prefiero el|lo compro|la compro|eso quiero|eso me sirve|eso me gusta)\b/i.test(message);
+		const quiereComprar = /\b(?:comprar(?:lo|la)?|lo quiero|la quiero|quiero esa|quiero esta|quiero ese|quiero este|quiero comprar|c[oó]mo (?:compro|hago|puedo pagar|le hago|le hago para pagar|pago)|quiero pagar|proceder|concretar|compralo|c[oó]mpralo|reservar|apartar|d[áa]le|confirmo compra|ya lo quiero|me gusta esa|me gusta esta|me gusta ese|esa me gusta|esta me gusta|si continuemos|si sigamos|sigamos adelante|seguimos|continuemos)\b|\bcompr(?:o|ar)\s+(?:esa|esta|este|ese|eso|esas|esos|estes)\b|\b(?:el de \d+|la de \d+|el primero|el segundo|la primera|la segunda|me quedo con|me interesa el|me interesa la|prefiero el|prefiero la|lo compro|la compro|eso quiero|eso me sirve|eso me gusta|me gusta el|me gusta la|me llevo el|me llevo la)\b|\b(?:el (?:de \d+|primero|segundo)|la (?:de \d+|primera|segunda))\b/i.test(message) && context?.ultimaBusqueda?.results?.length > 0;
 
 		const puedeComprar = context?.modalidad === 'contado' || 
 			(context?.ultimaBusqueda?.results?.length > 0 && context?.modalidad !== 'credito');
@@ -596,14 +631,27 @@ export class VentasAgent implements IAgent {
 				pPrice = ultimosProductos[0].price;
 			} else if (ultimosProductos.length > 1) {
 				const lowerMsg = message.toLowerCase();
-				const match = ultimosProductos.find((p: any) =>
+				let match = ultimosProductos.find((p: any) =>
 					p.name.toLowerCase().includes(lowerMsg) ||
 					lowerMsg.includes(p.name.toLowerCase().slice(0, 20)) ||
-					(lowerMsg.includes('900w') && p.name.toLowerCase().includes('900w')) ||
-					(lowerMsg.includes('700w') && p.name.toLowerCase().includes('700w')) ||
 					(lowerMsg.includes('primero') && ultimosProductos[0] === p) ||
-					(lowerMsg.includes('segundo') && ultimosProductos[1] === p)
+					(lowerMsg.includes('segundo') && ultimosProductos[1] === p) ||
+					(lowerMsg.includes('tercero') && ultimosProductos[2] === p)
 				);
+
+				if (!match) {
+					const numbersInMsg = lowerMsg.match(/\b\d+\b/g);
+					if (numbersInMsg && numbersInMsg.length > 0) {
+						const candidates = ultimosProductos.filter((p: any) =>
+							numbersInMsg.some(num => p.name.toLowerCase().includes(num))
+						);
+						if (candidates.length === 1) {
+							match = candidates[0];
+						} else if (candidates.length > 1) {
+							match = candidates[0];
+						}
+					}
+				}
 				
 				if (!match) {
 					const listaNombres = ultimosProductos.slice(0, 3).map((p: any, i: number) => {
@@ -991,32 +1039,13 @@ export class VentasAgent implements IAgent {
 			productoBuscado = terminoBusqueda;
 		}
 
-		const preguntaSeguimiento = /(?:especificaciones?|caracter[ií]sticas?|detalles?|d[ée]tal|cu[aá]nto cuesta|cu[aá]nto vale|cu[aá]l es|en qu[eé] se diferencia|diferencia|c[oó]mo es|descr[ií]belo|dimensiones|medidas|capacidad|color|modelo|referencia|precio|m[aá]s info|m[aá]s informaci[oó]n)/i.test(message) && context?.ultimaBusqueda?.results?.length > 0;
+		const preguntaSeguimiento = /(?:especificaciones?|caracter[ií]sticas?|detalles?|d[ée]tal|cu[aá]nto cuesta|cu[aá]nto vale|cu[aá]l es|en qu[eé] se diferencia|diferencia|c[oó]mo es|descr[ií]belo|dimensiones|medidas|capacidad|color|modelo|referencia|precio|m[aá]s info|m[aá]s informaci[oó]n|primero|segunda?|tercero|este|ese|aquel|me gusta|prefiero|quiero|detalles|garantia|la primera opci[oó]n|el primero|la primera)/i.test(message) && context?.ultimaBusqueda?.results?.length > 0;
 
 		if (preguntaSeguimiento) {
-			const guardados = context.ultimaBusqueda.results as any[];
-			const detalles = guardados.slice(0, 3).map((p: any) => {
-				const precio = p.price ? `$${Number(p.price).toLocaleString('es-CO')}` : 'Consultar precio';
-				const desc = (p.short_description || p.description || '')
-					.replace(/<[^>]+>/g, '')
-					.replace(/&[a-z]+;/g, ' ')
-					.replace(/\s+/g, ' ')
-					.trim()
-					.slice(0, 200);
-				return `${p.name} — ${precio}\n   ${desc ? desc + '...' : ''}\n   ${p.permalink}`;
-			}).join('\n\n');
-
-			return {
-				response: `Claro, aquí tienes los detalles:\n\n${detalles}\n\n¿Te gusta alguna? Puedo ayudarte con la compra.`,
-				nextStage: 'PROPOSAL',
-				metadata: {
-					agentType: 'ventas',
-					ciudadValidada: context?.ciudadValidada,
-					ciudad: context?.ciudad,
-					ultimaBusqueda: context?.ultimaBusqueda,
-					...datosPersonales,
-				},
-			};
+			products = context.ultimaBusqueda.results.slice(0, 6);
+			hayProductos = true;
+			// Conservar el término y categoría de búsqueda originales
+			productoBuscado = context?.ultimaBusqueda?.categoria || context?.terminoBusqueda || 'producto';
 		}
 
 		if (pideMas || pideMasEconomico) {
@@ -1134,9 +1163,12 @@ export class VentasAgent implements IAgent {
 		}
 
 		const productListStr = products.length > 0
-			? products.map((p: any, i: number) => {
+			? products.slice(0, 6).map((p: any, i: number) => {
 				const precio = p.price ? `$${Number(p.price).toLocaleString('es-CO')}` : 'Consultar precio';
-				return `${i + 1}. ${p.name} - ${precio}\n   ${p.permalink}`;
+				// Limpiar descripción HTML y truncar a 200 chars para dar contexto al LLM
+				const rawDesc: string = (p.short_description || p.description || '').replace(/<[^>]+>/g, ' ').replace(/\s{2,}/g, ' ').trim();
+				const desc = rawDesc.length > 200 ? rawDesc.slice(0, 197) + '...' : rawDesc;
+				return `${i + 1}. ${p.name} - ${precio}\n   Enlace: ${p.permalink}${desc ? `\n   Detalles: ${desc}` : ''}`;
 			}).join('\n\n')
 			: 'No se encontraron productos.';
 
@@ -1145,30 +1177,32 @@ export class VentasAgent implements IAgent {
 		const { system, user } = buildGemmaPrompt({
 			instruccion: `Eres ${AGENT_NAME}, asesora comercial y experta en electrodomésticos de JLC Electronics Colombia.
 Personalidad y Estilo:
-- Tono sumamente cálido, amigable, cercano y femenino. Imagina que eres una amiga servicial que asesora al cliente para su hogar.
-- Español colombiano natural y coloquial (usa expresiones como "Ay, mira...", "Te cuento que...", "Qué pena contigo...").
-- Muestra criterio y opinión propia sobre los productos para guiar al cliente (ej. "Esa lavadora de 16kg te la súper recomiendo si tienes una familia grande, está muy bien valorada y tiene buena capacidad").
-- Evita sonar como un bot rígido. No uses frases genéricas como "¡Excelente elección!" ni hables como robot.
-- Mensajes cortos tipo WhatsApp (máximo 1-3 frases por respuesta).
+- Tono 100% cálido, cercano, servicial y FEMENINO. Eres como una amiga que asesora con criterio y cariño.
+- Español colombiano natural (usa expresiones como "¡Ay, qué chévere!", "Te cuento que...", "Mira, te recomiendo...", "Qué pena pero...", "¡Ay, me alegra!").
+- EVITA palabras masculinas o de jerga: NO uses "bacano", "buenazo", "genial" — usa "chévere", "qué maravilla", "ideal", "perfecto".
+- Muestra criterio y opinión propia sobre los productos para guiar al cliente.
+- Mensajes cortos tipo WhatsApp (máximo 1-3 frases por respuesta). Nada de listados enormes.
+- IMPORTANTE: Usa el género gramatical correcto según el producto. Televisores y ventiladores son MASCULINOS ("el de 55 pulgadas", "el ventilador"). Neveras y lavadoras son FEMENINAS ("la nevera de 20 pies"). NO digas "la de 55 pulgadas" para un televisor.
 
 ${ciudadStr ? `Ciudad del cliente: ${ciudadStr}.` : ''} ${envioStr ? `Condición de envío: ${envioStr}.` : ''}
 ${userDataStr}
-REGLAS:
+REGLAS DE CATÁLOGO:
+- Si el cliente pregunta por detalles, especificaciones, características o diferencias de un producto que YA está en el CATÁLOGO, respóndele usando la información de "Detalles" del catálogo. NO hagas una nueva búsqueda.
+- Si el cliente menciona "la primera opción", "el de 55", "el primero", o algo similar, identifica a qué producto del catálogo se refiere y dale la información pedida.
 - Recomienda máximo 1-2 productos del CATÁLOGO con nombre, precio y enlace.
 - Si hay productos, preséntalos de forma natural y breve.
-- Si NO hay productos en el catálogo, dilo honestamente. NO inventes que "no tenemos" si el catálogo sí tiene.
+- Si NO hay productos en el catálogo, dilo honestamente.
 - NUNCA inventes productos, precios ni disponibilidad.
 - NUNCA compartas direcciones de agencias físicas.
 - NUNCA contradigas la condición de envío ya comunicada al cliente.
-- Sin asteriscos ni lenguaje técnico que confunda.
 - Si el cliente ya dio datos (nombre, cédula, ciudad, presupuesto), úsalos sin pedirlos de nuevo.
-- Si el cliente pide un producto NUEVO o diferente al anterior, ayúdale con eso. No insistas con el producto anterior.
+- Si el cliente pide un producto NUEVO o diferente al anterior, ayúdale con eso.
 - PROHIBIDO confirmar envío o despacho si el cliente no ha pagado. Di "tan pronto se confirme el pago".
 - Si el cliente dice que ya pagó, pide el comprobante o número de transacción.
-- NUNCA compartas números de WhatsApp de cartera, correos de facturación ni números de soporte de pago. Esos datos son exclusivos del área de cartera.
+- NUNCA compartas números de WhatsApp de cartera, correos de facturación ni números de soporte de pago.
 - NUNCA digas "generé tu orden de compra" ni "tu orden quedó lista". Di que el producto queda reservado pendiente a su pago.
-- Si NO encontraste el producto exacto que busca, NO le recomiendes productos de otra categoría. Solo dile que no lo tenemos disponible y pregunta si busca algo más.
-- NUNCA recomiendes productos que el cliente NO pidió (ej: si busca cafetera, NO ofrezcas arrocera ni licuadora).`,
+- Si NO encontraste el producto exacto que busca, NO le recomiendes productos de otra categoría.
+- NUNCA recomiendes productos que el cliente NO pidió.`,
 			ejemplos: [
 				{
 					cliente: 'Busco una nevera',
