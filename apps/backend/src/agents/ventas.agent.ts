@@ -106,9 +106,9 @@ export async function enviarResumenWhatsApp(resumen: string): Promise<void> {
 
 /**
  * Usa Inteligencia Artificial para entender exactamente qué producto eligió el cliente
- * sin importar si usa ordinales, marcas, especificaciones incompletas o sinónimos.
+ * analizando el último mensaje del asistente para mantener el contexto real de lo ofrecido.
  */
-async function matchProductoDesdeMsg(msg: string, productos: any[]): Promise<any | null> {
+async function matchProductoDesdeMsg(msg: string, productos: any[], lastAssistantMsg: string = ''): Promise<any | null> {
 	if (!productos || productos.length === 0) return null;
 	const lowerMsg = msg.toLowerCase().trim();
 
@@ -121,14 +121,19 @@ async function matchProductoDesdeMsg(msg: string, productos: any[]): Promise<any
 	// 2. IA para interpretar natural language robustamente
 	const listaStr = productos.map((p, i) => `${i + 1}. ${p.name}`).join('\n');
 	const system = `Eres un sistema experto de análisis de intenciones comerciales.
-Lista de productos en pantalla:
+Lista MÁXIMA de productos en la base de datos (con sus índices correctos):
 ${listaStr}
 
+Lo que el asistente le acaba de decir al cliente:
+"${lastAssistantMsg}"
+
+El cliente respondió: "${msg}"
+
 REGLAS:
-- El cliente responderá indicando cuál producto quiere. Puede usar ordinales ("la primera"), marcas, especificaciones técnicas ("la de 900w") o colores.
-- Determina qué producto de la lista seleccionó.
-- RESPONDE ÚNICAMENTE CON EL NÚMERO DE ÍNDICE DEL PRODUCTO (1, 2, 3...).
-- Si la respuesta es ambigua, pregunta por otra cosa o no selecciona ningún producto, responde "0".
+- Determina qué producto de la lista seleccionó el cliente, BASADO EN LO QUE LE OFRECIÓ EL ASISTENTE.
+- Si el cliente dice "la primera", se refiere a la primera opción mencionada en el mensaje del asistente, busca cuál de la lista corresponde a esa opción.
+- RESPONDE ÚNICAMENTE CON EL NÚMERO DE ÍNDICE DEL PRODUCTO EN LA BASE DE DATOS (1, 2, 3...).
+- Si la respuesta es ambigua o no selecciona ningún producto, responde "0".
 - NO des explicaciones, solo el número.`;
 
 	try {
@@ -392,8 +397,13 @@ export class VentasAgent implements IAgent {
 			const opcion = message.trim();
 			const ultimosProductos = context?.ultimaBusqueda?.results ?? [];
 			
+			// Extraer último mensaje del asistente para contexto
+			const history = context?.history || [];
+			const assistantMsgs = history.filter((h: any) => h.role === 'model');
+			const lastAssistantMsg = assistantMsgs.length > 0 ? assistantMsgs[assistantMsgs.length - 1].parts[0].text : '';
+
 			// Usar IA para interpretar cuál producto seleccionó
-			const selected: any = await matchProductoDesdeMsg(opcion, ultimosProductos);
+			const selected: any = await matchProductoDesdeMsg(opcion, ultimosProductos, lastAssistantMsg);
 
 			if (selected) {
 				const precioStr = selected.price ? ` tiene un valor de *$${Number(selected.price).toLocaleString('es-CO')}*` : '';
@@ -637,8 +647,13 @@ export class VentasAgent implements IAgent {
 				productoURL = ultimosProductos[0].permalink;
 				pPrice = ultimosProductos[0].price;
 			} else if (ultimosProductos.length > 1) {
+				// Extraer último mensaje del asistente para contexto
+				const history = context?.history || [];
+				const assistantMsgs = history.filter((h: any) => h.role === 'model');
+				const lastAssistantMsg = assistantMsgs.length > 0 ? assistantMsgs[assistantMsgs.length - 1].parts[0].text : '';
+
 				// Usar IA para interpretar cuál producto seleccionó
-				const matchResult = await matchProductoDesdeMsg(message, ultimosProductos);
+				const matchResult = await matchProductoDesdeMsg(message, ultimosProductos, lastAssistantMsg);
 				
 				if (!matchResult) {
 					// No se pudo identificar → preguntar con lista numerada
