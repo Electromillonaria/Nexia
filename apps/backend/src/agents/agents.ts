@@ -1394,9 +1394,13 @@ export class VentasAgent implements IAgent {
 		}
 
 		// ── PASO 4: Detectar intención de compra ─────────────────────────────
-		const quiereComprar = /\b(?:comprar(?:lo|la)?|lo quiero|la quiero|quiero esa|quiero esta|quiero ese|quiero este|quiero comprar|c[oó]mo (?:compro|hago|puedo pagar|le hago|le hago para pagar|pago)|quiero pagar|proceder|concretar|compralo|c[oó]mpralo|reservar|apartar|d[áa]le|confirmo compra|ya lo quiero|me gusta esa|me gusta esta|me gusta ese|esa me gusta|esta me gusta|si continuemos|si sigamos|sigamos adelante|seguimos|continuemos)\b|\bcompr(?:o|ar)\s+(?:esa|esta|este|ese)\b|\b(?:el de \d+|el primero|el segundo|me quedo con|me interesa el|prefiero el)\b/i.test(message);
+		const quiereComprar = /\b(?:comprar(?:lo|la)?|lo quiero|la quiero|quiero esa|quiero esta|quiero ese|quiero este|quiero comprar|c[oó]mo (?:compro|hago|puedo pagar|le hago|le hago para pagar|pago)|quiero pagar|proceder|concretar|compralo|c[oó]mpralo|reservar|apartar|d[áa]le|confirmo compra|ya lo quiero|me gusta esa|me gusta esta|me gusta ese|esa me gusta|esta me gusta|si continuemos|si sigamos|sigamos adelante|seguimos|continuemos)\b|\bcompr(?:o|ar)\s+(?:esa|esta|este|ese|eso|esas|esos|estes)\b|\b(?:el de \d+|el primero|el segundo|me quedo con|me interesa el|prefiero el|lo compro|la compro|eso quiero|eso me sirve|eso me gusta)\b/i.test(message);
 
-		if (quiereComprar && context?.modalidad === 'contado') {
+		// Considera compra si tiene modalidad contado O si tiene productos en contexto (sin modalidad explícita)
+		const puedeComprar = context?.modalidad === 'contado' || 
+			(context?.ultimaBusqueda?.results?.length > 0 && context?.modalidad !== 'credito');
+
+		if (quiereComprar && puedeComprar) {
 			const tieneCobertura = context?.tieneCobertura;
 			const opcionPuntoFisico = tieneCobertura
 				? '\n3️⃣ Paga en un punto físico'
@@ -1821,8 +1825,21 @@ export class VentasAgent implements IAgent {
 		let terminoBusqueda = context?.terminoBusqueda || message;
 
 		// Extraer término de producto para guardar como productoSolicitado
+		// Limpiar stopwords que no son parte del nombre del producto
+		const STOPWORDS_PRODUCTO = /\s+(?:de|del|la|el|los|las|un|una|unos|unas|por|para|con|que|y|o|en|a|al|JLC|Electronics|marca|modelo|referencia|producto|electrodoméstico|electrodomestico)\b.*/i;
 		const busquedaMatch = message.match(/(?:busco|quiero|necesito|tiene[ns]?|hay|venden|muestra|muestrame|quisiera|me interesa|info de|informacion de)\s*(?:un[oa]?|unas?|disponible|esta|este|esa|ese)?\s*([a-záéíóúñÁÉÍÓÚÑ][a-záéíóúñÁÉÍÓÚÑ\s]{2,40})/i);
-		const productoBuscado = busquedaMatch ? busquedaMatch[1].trim() : terminoBusqueda;
+		let productoBuscado: string;
+		if (busquedaMatch) {
+			// Limpiar el término capturado de stopwords y palabras de relleno
+			productoBuscado = busquedaMatch[1].trim()
+				.replace(STOPWORDS_PRODUCTO, '')
+				.replace(/\s{2,}/g, ' ')
+				.trim();
+			// Si el término quedó demasiado corto, usar el término de búsqueda del contexto
+			if (productoBuscado.length < 3) productoBuscado = terminoBusqueda;
+		} else {
+			productoBuscado = terminoBusqueda;
+		}
 
 		// ── Seguimiento: preguntas sobre productos ya mostrados ────────────
 		const preguntaSeguimiento = /(?:especificaciones?|caracter[ií]sticas?|detalles?|d[ée]tal|cu[aá]nto cuesta|cu[aá]nto vale|cu[aá]l es|en qu[eé] se diferencia|diferencia|c[oó]mo es|descr[ií]belo|dimensiones|medidas|capacidad|color|modelo|referencia|precio|m[aá]s info|m[aá]s informaci[oó]n)/i.test(message) && context?.ultimaBusqueda?.results?.length > 0;
