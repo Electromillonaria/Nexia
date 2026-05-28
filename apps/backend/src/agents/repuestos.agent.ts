@@ -15,9 +15,14 @@ export class RepuestosAgent implements IAgent {
 			return this.handleSeguimiento(message, lower, context, repuestoData);
 		}
 
-		// ── Step 4: Solicitando datos personales ──
+		// ── Step 5: Solicitando datos personales ──
 		if (context?.flujo === 'repuestos_datos') {
 			return this.handleDatosPersonales(message, lower, context, repuestoData);
+		}
+
+		// ── Step 4: Preguntar ciudad ──
+		if (context?.flujo === 'repuestos_ciudad') {
+			return this.handleCiudad(message, context, repuestoData);
 		}
 
 		// ── Step 3.5: Preguntar qué pieza/repuesto necesita ──
@@ -34,13 +39,20 @@ export class RepuestosAgent implements IAgent {
 		const tieneProducto = repuestoData.productoConfirmado || repuestoData.referenciaManual;
 
 		if (tieneProducto) {
-			// Tiene producto, preguntar qué pieza necesita
-			return this.pedirPieza(repuestoData);
+			const tienePieza = !!repuestoData.piezaCapturada;
+			const tieneCiudad = !!(context?.userData?.ciudad || context?.ciudad);
+
+			if (!tienePieza) return this.pedirPieza(repuestoData);
+			if (!tieneCiudad) return this.pedirCiudad(repuestoData);
+			return {
+				response: '¡Perfecto! Para registrar tu solicitud necesito tu nombre completo y número de cédula. 😊',
+				metadata: { agentType: 'repuestos', flujo: 'repuestos_datos', repuestoData },
+			};
 		}
 
-		// Primera vez: guardar lo que dijo y preguntar modelo
-		if (!repuestoData.repuesto) {
-			repuestoData.repuesto = message.trim();
+		// Primera vez: preguntar modelo
+		if (!repuestoData.iniciado) {
+			repuestoData.iniciado = true;
 			return {
 				response: '¿Cuál es el modelo o referencia de tu electrodoméstico? Lo encuentras en la placa trasera del equipo. 😊',
 				metadata: { agentType: 'repuestos', flujo: 'repuestos', repuestoData },
@@ -119,11 +131,35 @@ export class RepuestosAgent implements IAgent {
 		};
 	}
 
-	private async handlePieza(message: string, _context: any, repuestoData: any): Promise<AgentResponse> {
+	private async handlePieza(message: string, context: any, repuestoData: any): Promise<AgentResponse> {
 		repuestoData.repuesto = message.trim();
+		repuestoData.piezaCapturada = true;
+		const tieneCiudad = !!(context?.userData?.ciudad || context?.ciudad);
+		if (!tieneCiudad) {
+			return this.pedirCiudad(repuestoData);
+		}
 		return {
 			response: '¡Perfecto! Para registrar tu solicitud necesito tu nombre completo y número de cédula. 😊',
 			metadata: { agentType: 'repuestos', flujo: 'repuestos_datos', repuestoData },
+		};
+	}
+
+	private pedirCiudad(repuestoData: any): AgentResponse {
+		return {
+			response: '¿Desde qué ciudad o municipio nos escribes? 📍',
+			metadata: { agentType: 'repuestos', flujo: 'repuestos_ciudad', repuestoData },
+		};
+	}
+
+	private async handleCiudad(message: string, _context: any, repuestoData: any): Promise<AgentResponse> {
+		return {
+			response: '¡Perfecto! Para registrar tu solicitud necesito tu nombre completo y número de cédula. 😊',
+			metadata: {
+				agentType: 'repuestos',
+				flujo: 'repuestos_datos',
+				repuestoData,
+				ciudad: message.trim(),
+			},
 		};
 	}
 
@@ -211,9 +247,8 @@ export class RepuestosAgent implements IAgent {
 ${productInfo}
 Repuesto/pieza solicitada: "${repuestoData.repuesto || 'No especificado'}".
 Solicitante: ${repuestoData.nombreCliente}, CC ${repuestoData.cedulaCliente}.
-Sin stock: tiempo de pedido 3 a 5 días hábiles.
 Web: https://jlc-electronics.com/.
-Instrucción: indica al cliente que su solicitud fue registrada y que un asesor de repuestos se comunicará con él para confirmar disponibilidad y precio.`;
+Instrucción: INDICA AL CLIENTE QUE SU SOLICITUD FUE REGISTRADA Y QUE EN BREVE UN ASESOR SE COMUNICARÁ CON ÉL PARA VALIDAR LA DISPONIBILIDAD DEL REPUESTO. NO MENCIONAR STOCK, NI TIEMPOS DE PEDIDO, NI PLAZOS. SOLO DECIR QUE UN ASESOR LO CONTACTARÁ.`;
 
 		const { system, user } = buildGemmaPrompt({
 			instruccion: `Eres asistente de repuestos de Electrodomésticos JLC. ${datos}`,
@@ -221,7 +256,7 @@ Instrucción: indica al cliente que su solicitud fue registrada y que un asesor 
 				{
 					cliente: 'Necesito un empaque para nevera JLC modelo JLC-325',
 					asistente:
-						'¡Listo, Juan! Tu solicitud quedó registrada. Un asesor de repuestos se va a comunicar contigo para verificar la disponibilidad y darte el precio. 🙌',
+						'¡Listo, Juan! Tu solicitud quedó registrada. En breve un asesor se comunicará contigo para validar la disponibilidad del repuesto. 🙌',
 				},
 			],
 			historial: formatHistory(context?.history),
