@@ -1207,6 +1207,14 @@ export class VentasAgent implements IAgent {
 						}
 					}
 
+					if (!products || products.length === 0) {
+						const categoriaFallback = await detectarCategoria(message);
+						if (categoriaFallback) {
+							const results = await wooCommerceService.searchProducts(categoriaFallback, 20);
+							if (results?.length > 0) products = results;
+						}
+					}
+
 					if ((!products || products.length === 0) && esConsultaProducto) {
 						const nombreProducto = busquedaMatch?.[1]?.trim().toLowerCase() || terminoBusqueda.toLowerCase();
 						return {
