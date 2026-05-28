@@ -64,7 +64,7 @@ function pick<T>(arr: T[]): T {
 async function generarSaludoIA(recurrente: boolean, contexto: string): Promise<string | null> {
 	try {
 		const saludo = getSaludo();
-		const prompt = `Genera un saludo corto y natural (máximo 15 palabras) para un cliente que ${recurrente ? 'vuelve a escribirnos' : 'nos contacta por primera vez'} en JLC Electronics. Clima: ${saludo}. Contexto: ${contexto || 'ninguno'}. Solo el saludo, sin emojis.`;
+		const prompt = `Genera una frase de bienvenida corta (máximo 12 palabras) para un cliente que ${recurrente ? 'vuelve a escribirnos' : 'nos contacta por primera vez'} en JLC Electronics. Clima: ${saludo}. Contexto: ${contexto || 'ninguno'}. Debe terminar con "¿En qué te ayudo?" o "¿cómo puedo ayudarte?" Incluye el clima al inicio. Sin emojis.`;
 		const raw = await generateResponse(prompt, '');
 		const limpio = raw.replace(/["""*]/g, '').trim();
 		if (limpio.length > 10 && limpio.length < 100) return limpio;
@@ -99,7 +99,7 @@ export class BienvenidaAgent implements IAgent {
 		if (recurrente && !tieneIntencion) {
 			const iaSaludo = await generarSaludoIA(true, context?.userData?.nombre ? `cliente: ${context.userData.nombre}` : '');
 			return {
-				response: iaSaludo ? `${iaSaludo} 😊 ¿En qué te puedo ayudar hoy?` : pick(MENSAJES_RECURRENTE)(saludo),
+				response: iaSaludo || pick(MENSAJES_RECURRENTE)(saludo),
 				metadata: {
 					agentType: 'bienvenida',
 					passthrough: true,
