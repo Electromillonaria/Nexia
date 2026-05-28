@@ -16,9 +16,25 @@ export class BienvenidaAgent implements IAgent {
 		return keywords.some((kw) => lower.includes(kw));
 	}
 
-	async handle(message: string, _context: any): Promise<AgentResponse> {
+	private esClienteRecurrente(context: any): boolean {
+		return context?.nuevaSesion || (context?.history?.length ?? 0) > 0;
+	}
+
+	async handle(message: string, context: any): Promise<AgentResponse> {
 		const saludo = getSaludo();
+		const recurrente = this.esClienteRecurrente(context);
 		const tieneIntencion = this.tieneIntencionClara(message);
+
+		// Cliente recurrente: mensaje cálido de bienvenida de regreso
+		if (recurrente && !tieneIntencion) {
+			return {
+				response: `¡${saludo}! Qué gusto tenerte de nuevo por aquí. 😊 ¿En qué te puedo ayudar el día de hoy?`,
+				metadata: {
+					agentType: 'bienvenida',
+					passthrough: true,
+				},
+			};
+		}
 
 		// Si el usuario ya llegó con una intención clara, bienvenida breve
 		if (tieneIntencion) {
@@ -31,7 +47,7 @@ export class BienvenidaAgent implements IAgent {
 			};
 		}
 
-		// Bienvenida completa con menú organizado (mejora #1)
+		// Bienvenida completa con menú organizado para primera vez
 		const menu = `${saludo} 👋 Soy ${AGENT_NAME}, tu asesora virtual en JLC Electronics.
 
 ¿En qué te puedo ayudar?
