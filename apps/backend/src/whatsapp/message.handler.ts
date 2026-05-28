@@ -291,6 +291,7 @@ export async function processIncomingMessage(
 	if (typeof extra?.creditoStep === 'number') context.creditoStep = extra.creditoStep;
 	if (extra?.productoURL) context.productoURL = extra.productoURL;
 	if (extra?.productoCompra) context.productoCompra = extra.productoCompra;
+	if (typeof extra?.pasoWeb === 'number') context.pasoWeb = extra.pasoWeb;
 
 	// 7. Enrutar al orquestador
 	const { agentType, response, metadata } = await orchestrator.route(body, context);
