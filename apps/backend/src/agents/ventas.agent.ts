@@ -1078,6 +1078,18 @@ export class VentasAgent implements IAgent {
 			}
 		}
 
+		// ── Preguntas sobre la identidad del agente ─────────────────────────
+		if (/c[oó]mo te llamas|qui[eé]n eres|te llamas|como te llam|como es tu nombre|cu[aá]l es tu nombre|eres humana|eres robot|eres inteligencia|qui[eé]n soy|qui[eé]n es sara|sara qui[eé]n|presentate|pres[eé]ntate/i.test(message)) {
+			return {
+				response: `Soy ${AGENT_NAME}, tu asesora virtual de JLC Electronics, la marca de los colombianos. 😊 ¿En qué te puedo ayudar?`,
+				metadata: {
+					agentType: 'ventas',
+					ciudadValidada: context?.ciudadValidada,
+					ciudad: context?.ciudad,
+				},
+			};
+		}
+
 		// ── Flujo normal de ventas (mostrar productos) ──────────────────────
 		const ciudadStr = context?.ciudad ? `En ${context.ciudad.charAt(0).toUpperCase() + context.ciudad.slice(1)}` : '';
 		const envioStr = context?.tieneCobertura
