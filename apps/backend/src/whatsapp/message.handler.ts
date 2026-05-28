@@ -106,7 +106,7 @@ export async function handleIncomingMessage(msg: WAMessage): Promise<void> {
 	const realPhone = await resolvePhoneFromJid(remoteJid);
 
 	// Extraer el texto del mensaje admitiendo diferentes formatos de mensaje de Baileys
-	const body = (
+	let body = (
 		msg.message?.conversation ||
 		msg.message?.extendedTextMessage?.text ||
 		msg.message?.imageMessage?.caption ||
@@ -114,9 +114,16 @@ export async function handleIncomingMessage(msg: WAMessage): Promise<void> {
 		''
 	).trim();
 
+	// Si no hay texto pero es imagen/video, interpretar como comprobante si hay flujo de pago
 	if (!body) {
-		logger.warn({ phone }, 'Empty message body, ignoring');
-		return;
+		const esMedia = !!msg.message?.imageMessage || !!msg.message?.videoMessage;
+		if (esMedia) {
+			logger.info({ phone }, 'Media message without caption, treating as comprobante');
+			body = 'ya pague';
+		} else {
+			logger.warn({ phone }, 'Empty message body, ignoring');
+			return;
+		}
 	}
 
 	logger.info({ phone, realPhone, body: body.slice(0, 80) }, 'Incoming WA message');

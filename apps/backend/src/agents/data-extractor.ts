@@ -7,11 +7,6 @@ import logger from '../utils/logger.js';
  * Reglas determinísticas, NO depende de la IA.
  */
 function determinarPipelineStage(userData: Record<string, any>, ultimaRespuesta: string, historial: string): string {
-	// Si la respuesta del asistente contiene instrucciones de pago concretas o confirmación de compra
-	if (/(?:transferencia|consignaci[oó]n|PSE|tarjeta|cuenta de ahorros|cuenta corriente|Nequi|DaviPlata|Banco)\s*(?:\d|\s){4,}/i.test(ultimaRespuesta)) {
-		return 'VENTA_CERRADA';
-	}
-
 	const tieneNombre = !!userData?.nombre;
 	const tieneCedula = !!userData?.cedula;
 	const tieneDireccion = !!userData?.direccion;
@@ -20,10 +15,18 @@ function determinarPipelineStage(userData: Record<string, any>, ultimaRespuesta:
 	const tienePresupuesto = !!userData?.presupuesto;
 	const tieneCiudad = !!userData?.ciudad;
 
-	// VENTA_CERRADA: el cliente aceptó comprar, le dimos datos de pago
-	// Requiere que haya un producto conocido Y que el historial reciente mencione pago/confirmación específica
+	// VENTA_CERRADA opción A: el asistente dio instrucciones de pago (con o sin números)
+	if (/(?:transferencia|consignaci[oó]n|PSE|tarjeta|cuenta de ahorros|cuenta corriente|Nequi|DaviPlata|Banco|medios de pago autorizados|medios autorizados)/i.test(ultimaRespuesta)) {
+		return 'VENTA_CERRADA';
+	}
+
+	// VENTA_CERRADA opción B: el asistente confirmó recibo de pago o comprobante
+	if (/\b(?:recib[ií] tu comprobante|confirmar el pago|verificar[áa] el pago|n[uú]mero de gu[ií]a|pago confirmado|ya qued[oó] reservado?|pago verificado)\b/i.test(ultimaRespuesta)) {
+		return 'VENTA_CERRADA';
+	}
+
+	// VENTA_CERRADA opción C: el cliente ya dijo que pagó y hay producto conocido
 	if (
-		tieneNombre &&
 		tieneProducto &&
 		/(?:comprar|pagar|transferencia|consignaci[oó]n|confirmo|confirmar|listo el pago|ya pagu[eé]|comprobante|transacci[oó]n)/i.test(historial.slice(-300))
 	) {
