@@ -315,6 +315,8 @@ export async function processIncomingMessage(
 	if (typeof extra?.creditoStep === 'number') context.creditoStep = extra.creditoStep;
 	if (extra?.productoURL) context.productoURL = extra.productoURL;
 	if (extra?.productoCompra) context.productoCompra = extra.productoCompra;
+	if (extra?.terminoBusqueda) context.terminoBusqueda = extra.terminoBusqueda;
+	if (extra?.productoPendiente) context.productoPendiente = extra.productoPendiente;
 	if (typeof extra?.pasoWeb === 'number') context.pasoWeb = extra.pasoWeb;
 
 	// 7. Enrutar al orquestador
@@ -372,7 +374,7 @@ export async function processIncomingMessage(
 			const producto = repuesto.productoEncontrado
 				? `${repuesto.productoEncontrado.nombre}`
 				: repuesto.referenciaManual || 'No especificado';
-			const notifMsg = `🔧 SOLICITUD DE REPUESTO\n\nProducto: ${producto}\nRepuesto solicitado: ${repuesto.repuesto || 'No especificado'}\n\nCliente: ${repuesto.nombreCliente || 'nombre pendiente'}\nCédula: ${repuesto.cedulaCliente || 'pendiente'}\nTeléfono: ${phone}\nCiudad: ${userData.ciudad || 'No especificada'}\n\nFecha: ${new Date().toLocaleDateString('es-CO')}`;
+			const notifMsg = `🔧 SOLICITUD DE REPUESTO\n\nProducto: ${producto}\nRepuesto solicitado: ${repuesto.repuesto || 'No especificado'}\n\nCliente: ${repuesto.nombreCliente || 'nombre pendiente'}\nCédula: ${repuesto.cedulaCliente || 'pendiente'}\nTeléfono: ${realPhone}\nCiudad: ${userData.ciudad || 'No especificada'}\n\nFecha: ${new Date().toLocaleDateString('es-CO')}`;
 			try {
 				const { sendMessage: sendWADirect } = await import('./whatsapp.js');
 				await sendWADirect(WA_REPUESTOS, notifMsg);
@@ -387,7 +389,7 @@ export async function processIncomingMessage(
 			const WA_PROBLEMA_WEB = process.env.WA_ESCALAMIENTO || '573187408190';
 			const pd = metadata?.problemaWebData || {};
 			const notaJson = metadata?.notaJson || '{}';
-			const notifMsg = `🌐 REPORTE DE PROBLEMA EN PÁGINA WEB\n\nCliente: ${pd.nombreCliente || 'nombre pendiente'}\nCédula: ${pd.cedulaCliente || 'pendiente'}\nTeléfono: ${phone}\nCiudad: ${pd.ciudad || userData.ciudad || 'No especificada'}\n\nDetalle: ${pd.detalle || 'No especificado'}\nCausa: ${pd.causa || 'No especificada'}\n\nFecha: ${new Date().toLocaleDateString('es-CO')}`;
+			const notifMsg = `🌐 REPORTE DE PROBLEMA EN PÁGINA WEB\n\nCliente: ${pd.nombreCliente || 'nombre pendiente'}\nCédula: ${pd.cedulaCliente || 'pendiente'}\nTeléfono: ${realPhone}\nCiudad: ${pd.ciudad || userData.ciudad || 'No especificada'}\n\nDetalle: ${pd.detalle || 'No especificado'}\nCausa: ${pd.causa || 'No especificada'}\n\nFecha: ${new Date().toLocaleDateString('es-CO')}`;
 			try {
 				const { sendMessage: sendWADirect } = await import('./whatsapp.js');
 				await sendWADirect(WA_PROBLEMA_WEB, notifMsg);
@@ -413,7 +415,7 @@ export async function processIncomingMessage(
 			const WA_DISTRIBUIDOR_2 = process.env.WA_DISTRIBUIDOR_2 || '573207881141';
 			const dd = metadata?.distribuidorData || {};
 			const fecha = new Date().toLocaleDateString('es-CO');
-			const notifMsg = `🤝 SOLICITUD DE DISTRIBUIDOR\n\nNIT: ${dd.nit || '—'}\nNombre: ${dd.nombre || '—'}\nTeléfono: ${dd.telefono || '—'}\nCorreo: ${dd.correo || '—'}\nRango de ventas: ${dd.rangoVentas || '—'}\nUbicación: ${dd.ciudad || '—'}, ${dd.departamento || '—'}\n\nWhatsApp del interesado: ${phone}\nFecha: ${fecha}`;
+			const notifMsg = `🤝 SOLICITUD DE DISTRIBUIDOR\n\nNIT: ${dd.nit || '—'}\nNombre: ${dd.nombre || '—'}\nTeléfono: ${dd.telefono || '—'}\nCorreo: ${dd.correo || '—'}\nRango de ventas: ${dd.rangoVentas || '—'}\nUbicación: ${dd.ciudad || '—'}, ${dd.departamento || '—'}\n\nWhatsApp del interesado: ${realPhone}\nFecha: ${fecha}`;
 			try {
 				const { sendMessage: sendWADirect } = await import('./whatsapp.js');
 				await sendWADirect(WA_DISTRIBUIDOR_1, notifMsg);
@@ -432,9 +434,9 @@ export async function processIncomingMessage(
 
 			let notifMsg = '';
 			if (metadata?.notificarPuntoFisico) {
-				notifMsg = `🏪 PUNTO FÍSICO\nCliente: ${nombreInfo}\nCiudad: ${ciudadInfo}\nProducto: ${productoInfo}\nTeléfono: ${phone}\nQuiere pagar en punto físico. Requiere asistencia.`;
+				notifMsg = `🏪 PUNTO FÍSICO\nCliente: ${nombreInfo}\nCiudad: ${ciudadInfo}\nProducto: ${productoInfo}\nTeléfono: ${realPhone}\nQuiere pagar en punto físico. Requiere asistencia.`;
 			} else if (metadata?.escalado) {
-				notifMsg = `⚠️ ESCALAMIENTO\nCliente: ${nombreInfo}\nCiudad: ${ciudadInfo}\nProducto: ${productoInfo}\nTeléfono: ${phone}\nNo pudo completar el pago web. Requiere asistencia.`;
+				notifMsg = `⚠️ ESCALAMIENTO\nCliente: ${nombreInfo}\nCiudad: ${ciudadInfo}\nProducto: ${productoInfo}\nTeléfono: ${realPhone}\nNo pudo completar el pago web. Requiere asistencia.`;
 			}
 
 			if (notifMsg) {

@@ -563,16 +563,23 @@ export class VentasAgent implements IAgent {
 			}
 
 			const msgSinCobertura = (await generarMensajeSinCobertura(ciudadCap, context?.pendingMessage || '')).trim();
+			const catOriginal = detectarCategoria(context?.pendingMessage || '');
+			const metaSinCobertura: any = {
+				agentType: 'ventas',
+				ciudad: ciudadDetectada,
+				ciudadValidada: true,
+				tieneCobertura: false,
+				modalidad: 'contado',
+				flujo: null,
+			};
+			if (catOriginal) {
+				const termino = (context?.pendingMessage || '').replace(/(?:busco|quiero|necesito|tiene[ns]?|hay|venden|muestra|muestrame|quisiera|me interesa)\s*/gi, '').trim();
+				metaSinCobertura.terminoBusqueda = context?.pendingMessage || '';
+				metaSinCobertura.productoPendiente = termino;
+			}
 			return {
 				response: msgSinCobertura,
-				metadata: {
-					agentType: 'ventas',
-					ciudad: ciudadDetectada,
-					ciudadValidada: true,
-					tieneCobertura: false,
-					modalidad: 'contado',
-					flujo: null,
-				},
+				metadata: metaSinCobertura,
 			};
 		}
 
@@ -598,6 +605,30 @@ export class VentasAgent implements IAgent {
 			}
 
 			if (quiereContado) {
+				const msgOriginal = context?.pendingMessage || '';
+				const catOriginal = detectarCategoria(msgOriginal);
+				if (catOriginal) {
+					const termino = msgOriginal.replace(/(?:busco|quiero|necesito|tiene[ns]?|hay|venden|muestra|muestrame|quisiera|me interesa)\s*/gi, '').trim();
+					try {
+						const products = await wooCommerceService.searchProducts(termino, 5);
+						if (products.length > 0) {
+							const lista = products.map((p, i) => `${i + 1}. *${p.name}* — $${parseInt(p.price).toLocaleString('es-CO')}`).join('\n');
+							return {
+								response: `¡Perfecto! Estos son algunos productos que encontré:\n\n${lista}\n\n¿Te gusta alguno? Cuéntame cuál para darte más detalles 😊`,
+								metadata: {
+									agentType: 'ventas',
+									modalidad: 'contado',
+									ciudad: context?.ciudad,
+									ciudadValidada: true,
+									tieneCobertura: context?.tieneCobertura,
+									terminoBusqueda: msgOriginal,
+									ultimaBusqueda: { results: products, categoria: catOriginal, productoIndex: 0 },
+									flujo: null,
+								},
+							};
+						}
+					} catch { /* fallback: preguntar producto */ }
+				}
 				return {
 					response: `¡Perfecto! Cuéntame, ¿qué estás buscando? 😊`,
 					metadata: {
