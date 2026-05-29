@@ -311,6 +311,7 @@ export async function processIncomingMessage(
 	if (extra?.creditoOptions) context.creditoOptions = extra.creditoOptions;
 	if (extra?.creditoData) context.creditoData = extra.creditoData;
 	if (extra?.repuestoData) context.repuestoData = extra.repuestoData;
+	if (extra?.distribuidorData) context.distribuidorData = extra.distribuidorData;
 	if (typeof extra?.creditoStep === 'number') context.creditoStep = extra.creditoStep;
 	if (extra?.productoURL) context.productoURL = extra.productoURL;
 	if (extra?.productoCompra) context.productoCompra = extra.productoCompra;
@@ -404,6 +405,22 @@ export async function processIncomingMessage(
 				} catch (e) {
 					logger.error({ error: e }, 'Error creando nota de problema web');
 				}
+			}
+		}
+
+		if (metadata?.notificarDistribuidores) {
+			const WA_DISTRIBUIDOR_1 = process.env.WA_DISTRIBUIDOR_1 || '573216450110';
+			const WA_DISTRIBUIDOR_2 = process.env.WA_DISTRIBUIDOR_2 || '573207881141';
+			const dd = metadata?.distribuidorData || {};
+			const fecha = new Date().toLocaleDateString('es-CO');
+			const notifMsg = `🤝 SOLICITUD DE DISTRIBUIDOR\n\nNIT: ${dd.nit || '—'}\nNombre: ${dd.nombre || '—'}\nTeléfono: ${dd.telefono || '—'}\nCorreo: ${dd.correo || '—'}\nRango de ventas: ${dd.rangoVentas || '—'}\nUbicación: ${dd.ciudad || '—'}, ${dd.departamento || '—'}\n\nWhatsApp del interesado: ${phone}\nFecha: ${fecha}`;
+			try {
+				const { sendMessage: sendWADirect } = await import('./whatsapp.js');
+				await sendWADirect(WA_DISTRIBUIDOR_1, notifMsg);
+				await sendWADirect(WA_DISTRIBUIDOR_2, notifMsg);
+				logger.info({ phone, tipo: 'distribuidor' }, 'Notificación de distribuidor enviada a ambos números');
+			} catch (e) {
+				logger.error({ error: e }, 'Error enviando notificación de distribuidor');
 			}
 		}
 
