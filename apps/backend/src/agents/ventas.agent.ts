@@ -347,16 +347,17 @@ export class VentasAgent implements IAgent {
 			const quiereContinuar = /s[ií]|dale|ok|bueno|claro|por favor|seguir|continuar/i.test(lower);
 			if (quiereContinuar) {
 				context.flujo = 'esperando_modalidad';
-				return {
-					response: '¡Súper! Cuéntame, ¿la compra sería al *contado* o a *crédito*? 💙',
-					metadata: {
-						agentType: 'ventas',
-						flujo: 'esperando_modalidad',
-						ciudad: context?.ciudad,
-						ciudadValidada: true,
-						tieneCobertura: context?.tieneCobertura,
-					},
-				};
+			return {
+				response: '¡Súper! Cuéntame, ¿la compra sería al *contado* o a *crédito*? 💙',
+				metadata: {
+					agentType: 'ventas',
+					flujo: 'esperando_modalidad',
+					ciudad: context?.ciudad,
+					ciudadValidada: true,
+					tieneCobertura: context?.tieneCobertura,
+					pendingMessage: context?.pendingMessage,
+				},
+			};
 			} else {
 				context.flujo = null;
 				return {
@@ -651,6 +652,7 @@ export class VentasAgent implements IAgent {
 					ciudad: context?.ciudad,
 					ciudadValidada: true,
 					tieneCobertura: context?.tieneCobertura,
+					pendingMessage: context?.pendingMessage,
 				},
 			};
 		}
@@ -692,6 +694,7 @@ export class VentasAgent implements IAgent {
 						ciudadValidada: true,
 						tieneCobertura: true,
 						flujo: 'esperando_modalidad',
+						pendingMessage: message,
 					},
 				};
 			}
