@@ -4,6 +4,7 @@ import {
 	PROFILING_STEPS,
 	resolverRespuestaPerfil,
 	detectarCategoria,
+	extraerProductoConIA,
 	detectarShortcuts,
 	obtenerTerminoBusquedaDesdePerfil,
 	camposPerfilCompletados,
@@ -565,7 +566,7 @@ export class VentasAgent implements IAgent {
 			}
 
 			const msgSinCobertura = (await generarMensajeSinCobertura(ciudadCap, context?.pendingMessage || '')).trim();
-			const catOriginal = detectarCategoria(context?.pendingMessage || '');
+			const terminoIA = await extraerProductoConIA(context?.pendingMessage || '');
 			const metaSinCobertura: any = {
 				agentType: 'ventas',
 				ciudad: ciudadDetectada,
@@ -574,12 +575,9 @@ export class VentasAgent implements IAgent {
 				modalidad: 'contado',
 				flujo: null,
 			};
-			if (catOriginal) {
-				const termino = catOriginal === 'otra'
-					? (context?.pendingMessage || '').replace(/(?:busco|quiero|necesito|tiene[ns]?|hay|venden|muestra|muestrame|quisiera|me interesa|compro|comprar|adquirir|conseguir|obtener|ver|mirar|cotizar|saber)\s*/gi, '').replace(/\b(?:un|una|unas|unos|el|la|los|las|para|de|en|por|con|sin|y|o|a|al|del|me|te|se|le|lo)\b/gi, '').replace(/\s+/g, ' ').trim()
-					: catOriginal;
-				metaSinCobertura.terminoBusqueda = termino;
-				metaSinCobertura.productoPendiente = termino;
+			if (terminoIA) {
+				metaSinCobertura.terminoBusqueda = terminoIA;
+				metaSinCobertura.productoPendiente = terminoIA;
 			}
 			return {
 				response: msgSinCobertura,
@@ -610,13 +608,10 @@ export class VentasAgent implements IAgent {
 
 			if (quiereContado) {
 				const msgOriginal = context?.pendingMessage || '';
-				const catOriginal = detectarCategoria(msgOriginal);
-				if (catOriginal) {
-					const termino = catOriginal === 'otra'
-						? msgOriginal.replace(/(?:busco|quiero|necesito|tiene[ns]?|hay|venden|muestra|muestrame|quisiera|me interesa|compro|comprar|adquirir|conseguir|obtener|ver|mirar|cotizar|saber)\s*/gi, '').replace(/\b(?:un|una|unas|unos|el|la|los|las|para|de|en|por|con|sin|y|o|a|al|del|me|te|se|le|lo)\b/gi, '').replace(/\s+/g, ' ').trim()
-						: catOriginal;
+				const terminoIA = await extraerProductoConIA(msgOriginal);
+				if (terminoIA) {
 					try {
-						const products = await wooCommerceService.searchProducts(termino, 5);
+						const products = await wooCommerceService.searchProducts(terminoIA, 5);
 						if (products.length > 0) {
 							const lista = products.map((p, i) => `${i + 1}. *${p.name}* — $${parseInt(p.price).toLocaleString('es-CO')}`).join('\n');
 							return {
@@ -627,8 +622,8 @@ export class VentasAgent implements IAgent {
 									ciudad: context?.ciudad,
 									ciudadValidada: true,
 									tieneCobertura: context?.tieneCobertura,
-									terminoBusqueda: termino,
-									ultimaBusqueda: { results: products, categoria: catOriginal, productoIndex: 0 },
+									terminoBusqueda: terminoIA,
+									ultimaBusqueda: { results: products, categoria: detectarCategoria(msgOriginal) || undefined, productoIndex: 0 },
 									flujo: null,
 								},
 							};
